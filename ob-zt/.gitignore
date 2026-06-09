@@ -1,0 +1,28 @@
+# Online Boutique source (cloned by setup.sh — not committed here)
+online-boutique/
+
+# Generated TLS certificates
+certs/*.crt
+certs/*.key
+certs/*.csr
+certs/*.srl
+certs/*.jks
+certs/*.p12
+
+# Experiment results
+results/experiments/
+results/sweep_*.log
+
+# Build artefacts
+load-tests/target/
+load-tests/results/
+**/node_modules/
+**/__pycache__/
+*.pyc
+
+# OS / editor
+.DS_Store
+._*
+.vscode/
+.idea/
+.claude/

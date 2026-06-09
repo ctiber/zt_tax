@@ -1,0 +1,37 @@
+# ── Security — never commit ──────────────────────────────────────
+**/certs/*.crt
+**/certs/*.key
+**/certs/*.csr
+**/certs/*.srl
+**/certs/*.jks
+**/certs/*.p12
+at_zt_tax_repo.txt
+**/*.env.secret
+
+# ── Online Boutique source (cloned by ob-zt/setup.sh) ────────────
+ob-zt/online-boutique/
+
+# ── Experiment results ────────────────────────────────────────────
+**/results/experiments/
+**/results/experiments_r*/
+**/results/*_stdout.log
+**/results/sweep_*.log
+
+# ── Build artefacts ───────────────────────────────────────────────
+**/load-tests/target/
+**/load-tests/results/
+**/node_modules/
+**/__pycache__/
+*.pyc
+
+# ── Paper (conference submission — not public) ────────────────────
+soy/paper/
+
+# ── AI/editor workspace ──────────────────────────────────────────
+**/.claude/
+**/CLAUDE.md
+.DS_Store
+._*
+Thumbs.db
+.vscode/
+.idea/

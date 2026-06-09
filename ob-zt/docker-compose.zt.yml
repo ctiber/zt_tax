@@ -1,0 +1,245 @@
+# ZT overlay — use with:
+#   docker compose -f ob-base.yml -f docker-compose.zt.yml \
+#     --env-file variants/v1-baseline.env up
+#
+# This file:
+#   - Adds zt-gateway (ZT enforcement point, port 8080 external)
+#   - Adds queue-adapter (AMQP async pattern)
+#   - Adds risk-analysis (RA primitive)
+#   - Adds rabbitmq (queue pattern broker)
+#   - Adds vault + vault-agent (SR primitive)
+#   - Overrides OB frontend to port 8081 (internal) so gateway owns 8080
+#   - Injects ZT feature flags into every OB service
+
+services:
+
+  # ── ZT API gateway ─────────────────────────────────────────────
+  zt-gateway:
+    build:
+      context: ./gateway
+      network: host
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      FRONTEND_URL: "http://frontend:8081"
+      RA_URL: "http://risk-analysis:5002"
+      AMQP_URL: "amqp://guest:guest@rabbitmq:5672"
+      COM_PATTERN: "${COM_PATTERN:-http}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+      ZT_AUTH: "${ZT_AUTH:-false}"
+      ZT_RA: "${ZT_RA:-false}"
+      ZT_MTLS: "${ZT_MTLS:-false}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318/v1/traces"
+    volumes:
+      - ./certs:/certs:ro
+    depends_on:
+      - frontend
+    networks:
+      - default
+
+  # ── Async queue adapter ─────────────────────────────────────────
+  queue-adapter:
+    build:
+      context: ./queue-adapter
+      network: host
+    environment:
+      AMQP_URL: "amqp://guest:guest@rabbitmq:5672"
+      FRONTEND_URL: "http://frontend:8081"
+      PREFETCH: "32"
+    depends_on:
+      - rabbitmq
+      - frontend
+    profiles:
+      - queue
+    networks:
+      - default
+
+  # ── Risk Analysis service (reused from SoY study) ───────────────
+  risk-analysis:
+    build:
+      context: ./risk-analysis
+      network: host
+    environment:
+      PORT: "5002"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4318/v1/traces"
+    profiles:
+      - ra
+    networks:
+      - default
+
+  # ── RabbitMQ (queue pattern) ────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - queue
+    networks:
+      - default
+
+  # ── HashiCorp Vault (SR primitive) ─────────────────────────────
+  vault:
+    image: hashicorp/vault:1.15
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "ob-zt-dev-root-token"
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault_file:/vault/file
+      - vault_logs:/vault/logs
+    profiles:
+      - sr
+    networks:
+      - default
+
+  vault-init:
+    image: hashicorp/vault:1.15
+    entrypoint: ["sh", "/vault/init.sh"]
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: "ob-zt-dev-root-token"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+    volumes:
+      - ./vault:/vault:rw
+      - vault_file:/vault/file
+      - vault_logs:/vault/logs
+    depends_on:
+      - vault
+    profiles:
+      - sr
+    networks:
+      - default
+
+  # ── Override OB frontend: move to internal port 8081 ───────────
+  frontend:
+    ports: !reset []            # remove OB's 8080:8080 mapping
+    environment:
+      PORT: "8081"
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+
+  # ── Inject ZT flags into all OB services ───────────────────────
+  checkoutservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+      ZT_RA_MS: "${ZT_RA_MS:-false}"
+      RA_URL: "http://risk-analysis:5002"
+
+  cartservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+      ZT_RA_MS: "${ZT_RA_MS:-false}"
+      RA_URL: "http://risk-analysis:5002"
+
+  productcatalogservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+      ZT_RA_MS: "${ZT_RA_MS:-false}"
+      RA_URL: "http://risk-analysis:5002"
+
+  shippingservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+      ZT_RA_MS: "${ZT_RA_MS:-false}"
+      RA_URL: "http://risk-analysis:5002"
+
+  paymentservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+      ZT_RA_MS: "${ZT_RA_MS:-false}"
+      RA_URL: "http://risk-analysis:5002"
+
+  currencyservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+
+  emailservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+
+  recommendationservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+
+  adservice:
+    environment:
+      ZT_AC4A: "${ZT_AC4A:-false}"
+      JWT_SECRET: "${JWT_SECRET:-dev-secret-change-me}"
+
+  # ── Monitoring stack ────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    profiles:
+      - monitoring
+    networks:
+      - default
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+    ports:
+      - "3000:3000"
+    profiles:
+      - monitoring
+    networks:
+      - default
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    profiles:
+      - monitoring
+    networks:
+      - default
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.58
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    profiles:
+      - monitoring
+    networks:
+      - default
+
+volumes:
+  vault_file:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+  vault_logs:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs

@@ -1,0 +1,139 @@
+# Base docker-compose for Google Online Boutique services.
+# Patched Dockerfiles (with ZT ac4a wiring) replace originals via setup.sh.
+# Use with docker-compose.zt.yml overlay.
+
+services:
+
+  frontend:
+    build:
+      context: online-boutique/src/frontend
+      network: host
+    environment:
+      PORT: "8080"
+      PRODUCT_CATALOG_SERVICE_ADDR: "productcatalogservice:3550"
+      CURRENCY_SERVICE_ADDR: "currencyservice:7000"
+      CART_SERVICE_ADDR: "cartservice:7070"
+      RECOMMENDATION_SERVICE_ADDR: "recommendationservice:8080"
+      CHECKOUT_SERVICE_ADDR: "checkoutservice:5050"
+      SHIPPING_SERVICE_ADDR: "shippingservice:50051"
+      AD_SERVICE_ADDR: "adservice:9555"
+      SHOPPING_ASSISTANT_SERVICE_ADDR: "shoppingassistantservice:80"
+      ENABLE_TRACING: "0"
+      ENABLE_PROFILER: "0"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - productcatalogservice
+      - currencyservice
+      - cartservice
+      - recommendationservice
+      - checkoutservice
+      - shippingservice
+      - adservice
+
+  checkoutservice:
+    build:
+      context: online-boutique/src/checkoutservice
+      network: host
+    environment:
+      PORT: "5050"
+      PRODUCT_CATALOG_SERVICE_ADDR: "productcatalogservice:3550"
+      SHIPPING_SERVICE_ADDR: "shippingservice:50051"
+      PAYMENT_SERVICE_ADDR: "paymentservice:50051"
+      EMAIL_SERVICE_ADDR: "emailservice:8080"
+      CURRENCY_SERVICE_ADDR: "currencyservice:7000"
+      CART_SERVICE_ADDR: "cartservice:7070"
+      ENABLE_TRACING: "0"
+      ENABLE_PROFILER: "0"
+    depends_on:
+      - productcatalogservice
+      - shippingservice
+      - paymentservice
+      - emailservice
+      - currencyservice
+      - cartservice
+
+  productcatalogservice:
+    build:
+      context: online-boutique/src/productcatalogservice
+      network: host
+    environment:
+      PORT: "3550"
+      ENABLE_TRACING: "0"
+      ENABLE_PROFILER: "0"
+
+  cartservice:
+    build:
+      context: online-boutique/src/cartservice/src
+      network: host
+    environment:
+      REDIS_ADDR: "redis:6379"
+      ASPNETCORE_HTTP_PORTS: "7070"
+    depends_on:
+      - redis
+
+  currencyservice:
+    build:
+      context: online-boutique/src/currencyservice
+      network: host
+    environment:
+      PORT: "7000"
+      ENABLE_TRACING: "0"
+      DISABLE_PROFILER: "1"
+
+  paymentservice:
+    build:
+      context: online-boutique/src/paymentservice
+      network: host
+    environment:
+      PORT: "50051"
+      ENABLE_TRACING: "0"
+      DISABLE_PROFILER: "1"
+
+  shippingservice:
+    build:
+      context: online-boutique/src/shippingservice
+      network: host
+    environment:
+      PORT: "50051"
+      ENABLE_TRACING: "0"
+      DISABLE_STATS: "1"
+
+  emailservice:
+    build:
+      context: online-boutique/src/emailservice
+      network: host
+    environment:
+      PORT: "8080"
+      ENABLE_TRACING: "0"
+      DISABLE_PROFILER: "1"
+
+  recommendationservice:
+    build:
+      context: online-boutique/src/recommendationservice
+      network: host
+    environment:
+      PORT: "8080"
+      PRODUCT_CATALOG_SERVICE_ADDR: "productcatalogservice:3550"
+      ENABLE_TRACING: "0"
+      DISABLE_PROFILER: "1"
+      GCP_PROJECT_ID: "local"
+    depends_on:
+      - productcatalogservice
+
+  adservice:
+    build:
+      context: online-boutique/src/adservice
+      network: host
+    environment:
+      PORT: "9555"
+      ENABLE_TRACING: "0"
+      DISABLE_STATS: "1"
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
