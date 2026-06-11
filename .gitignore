@@ -25,18 +25,9 @@ ob-zt/online-boutique/
 **/__pycache__/
 *.pyc
 
-# ── Paper (conference submission — not public) ────────────────────
+# ── Paper (not public) ───────────────────────────────────────────
+paper/
 soy/paper/
-
-# ── LaTeX build artefacts ────────────────────────────────────────
-paper/*.aux
-paper/*.bbl
-paper/*.blg
-paper/*.fdb_latexmk
-paper/*.fls
-paper/*.log
-paper/*.out
-paper/main.tex.bak
 
 # ── AI/editor workspace ──────────────────────────────────────────
 **/.claude/
