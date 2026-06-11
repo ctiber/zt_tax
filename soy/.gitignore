@@ -1,0 +1,36 @@
+# ── GitHub access token ─────────────────────────────────────────
+at_zt_tax_repo.txt
+
+# ── Raw experiment data (42 GB) ──────────────────────────────────
+results/experiments/
+results/sweep_*.log
+results/sweep_*.log.*
+
+# ── Paper (conference submission — not public) ───────────────────
+paper/
+
+# ── Build artefacts and local Gatling results ────────────────────
+load-tests/target/
+load-tests/results/
+**/node_modules/
+scripts/__pycache__/
+**/__pycache__/
+*.pyc
+
+# ── TLS certificates (generated locally by generate-certs.sh) ───
+certs/*.crt
+certs/*.key
+certs/*.csr
+certs/*.srl
+certs/*.jks
+certs/*.p12
+
+# ── OS / editor noise ────────────────────────────────────────────
+.DS_Store
+._*
+Thumbs.db
+.vscode/
+.idea/
+
+# ── Claude Code workspace ────────────────────────────────────────
+.claude/

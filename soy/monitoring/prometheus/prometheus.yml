@@ -1,0 +1,21 @@
+global:
+  scrape_interval:     5s
+  evaluation_interval: 5s
+
+scrape_configs:
+
+  # cAdvisor – per-container CPU, memory, network
+  - job_name: cadvisor
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # node-exporter – host-level CPU, memory, disk, network
+  - job_name: node
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Risk Analysis service – custom metrics
+  - job_name: risk-analysis
+    metrics_path: /health
+    static_configs:
+      - targets: ['risk-analysis:9000']

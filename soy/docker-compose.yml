@@ -1,0 +1,444 @@
+version: "3.9"
+
+# =============================================================
+# SoY – Zero Trust Security Tax Measurement
+#
+# SECURITY VARIANTS (selected via ZT_VARIANT_ENV):
+#   variants/v1-baseline.env  … variants/v16-all.env
+#
+# COMMUNICATION PATTERN (COM_PATTERN env var):
+#   http       – HTTP/1.1 reverse proxy (default)
+#   grpc       – gRPC / HTTP/2 + Protobuf
+#   websocket  – socket.io persistent connection
+#   queue      – AMQP request-reply via RabbitMQ   (profile: queue)
+#   topic      – Kafka publish-subscribe            (profile: topic)
+#   cqrs       – In-memory command bus + query proxy
+#
+# ZERO TRUST FEATURE FLAGS (set in variant .env files):
+#   ZT_AC4A=true/false   – Access Control on All services (JWT on each MS)
+#   ZT_SR=true/false     – Secret Rotation via HashiCorp Vault
+#   ZT_MTLS=true/false   – Mutual TLS between services
+#   ZT_RA=true/false     – Risk Analysis service integration
+#
+# DOCKER PROFILES (activated by run-variant.sh):
+#   sr          – Vault + vault-init bootstrap
+#   ra          – Risk Analysis microservice
+#   mtls        – Nginx mTLS sidecar proxies + cert-init
+#   queue       – RabbitMQ message broker
+#   topic       – Kafka + Zookeeper
+#   monitoring  – Prometheus, Grafana, cAdvisor, node-exporter
+#
+# QUICK START:
+#   ./scripts/run-variant.sh 1  http       # v1 baseline, REST
+#   ./scripts/run-variant.sh 16 http       # v16 full ZT, REST
+#   ./scripts/run-variant.sh 1  grpc       # v1 baseline, gRPC
+#   ./scripts/run-variant.sh 1  queue      # v1 baseline, RabbitMQ
+# =============================================================
+
+services:
+
+  # ─────────────────────────────────────────────────────────
+  # FRONTEND
+  # ─────────────────────────────────────────────────────────
+  front:
+    build:
+      context: ./FrontReact
+    container_name: soy_front
+    profiles: [front]
+    security_opt:
+      - no-new-privileges:true
+    restart: on-failure
+    ports:
+      - "${FRONT_PORT:-3001}:8000"
+    env_file:
+      - variables.env
+      - ${ZT_VARIANT_ENV:-variants/v1-baseline.env}
+
+  # ─────────────────────────────────────────────────────────
+  # DATABASE
+  # ─────────────────────────────────────────────────────────
+  postgres:
+    build:
+      context: ./soy-db
+    container_name: soy_postgres
+    shm_size: 1g
+    security_opt:
+      - no-new-privileges:true
+    restart: on-failure
+    env_file:
+      - variables.env
+    networks:
+      - appnet
+    volumes:
+      - ./soy-db/v5-soy-db:/var/lib/postgresql/data
+
+  # ─────────────────────────────────────────────────────────
+  # API GATEWAY
+  # ─────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway-http
+    container_name: soy_gateway
+    security_opt:
+      - no-new-privileges:true
+    restart: on-failure
+    depends_on:
+      - ms-exercise
+      - ms-other
+    ports:
+      - "${GATEWAY_PORT:-5001}:8080"
+    networks:
+      - appnet
+    env_file:
+      - variables.env
+      - ${ZT_VARIANT_ENV:-variants/v1-baseline.env}
+    environment:
+      - OTEL_SERVICE_NAME=soy-gateway
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./proto:/app/proto:ro
+
+  # ─────────────────────────────────────────────────────────
+  # MICROSERVICES
+  # ─────────────────────────────────────────────────────────
+  ms-exercise:
+    build:
+      context: ./exercise-http
+    container_name: soy_ms_exercise
+    security_opt:
+      - no-new-privileges:true
+    restart: on-failure
+    networks:
+      - appnet
+    env_file:
+      - variables.env
+      - ${ZT_VARIANT_ENV:-variants/v1-baseline.env}
+    environment:
+      - SERVICE_NAME=ms-exercise
+      - OTEL_SERVICE_NAME=soy-ms-exercise
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./proto:/app/proto:ro
+
+  ms-other:
+    build:
+      context: ./other-http
+    container_name: soy_ms_other
+    security_opt:
+      - no-new-privileges:true
+    restart: on-failure
+    networks:
+      - appnet
+    env_file:
+      - variables.env
+      - ${ZT_VARIANT_ENV:-variants/v1-baseline.env}
+    environment:
+      - SERVICE_NAME=ms-other
+      - OTEL_SERVICE_NAME=soy-ms-other
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./proto:/app/proto:ro
+
+  # ─────────────────────────────────────────────────────────
+  # SR PRIMITIVE – HashiCorp Vault  (profile: sr)
+  # ─────────────────────────────────────────────────────────
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: soy_vault
+    profiles: [sr]
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_TOKEN:-soy-dev-root-token}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:8200"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  vault-init:
+    image: hashicorp/vault:1.15
+    container_name: soy_vault_init
+    profiles: [sr]
+    depends_on:
+      vault:
+        condition: service_healthy
+    networks:
+      - appnet
+    volumes:
+      - ./vault:/vault-config:ro
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: ${VAULT_DEV_TOKEN:-soy-dev-root-token}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-anonymous}
+      SECRET_JWT: ${SECRET_JWT:-your_custom_jwt_secret}
+      COOKIE_SECRET: ${COOKIE_SECRET:-your_custom_cookie_secret}
+    entrypoint: ["sh", "/vault-config/init.sh"]
+    restart: "no"
+
+  # ─────────────────────────────────────────────────────────
+  # RA PRIMITIVE – Risk Analysis service  (profile: ra)
+  # ─────────────────────────────────────────────────────────
+  risk-analysis:
+    build:
+      context: ./risk-analysis
+    container_name: soy_risk_analysis
+    security_opt:
+      - no-new-privileges:true
+    profiles: [ra]
+    restart: on-failure
+    networks:
+      - appnet
+    environment:
+      - PORT=9000
+      - ALERT_WINDOW_MS=60000
+      # Threshold = distinct routes per window. Normal classroom use = ~8 routes
+      # (login, session, exercises-list, exercise, statement, productions, submit, logout).
+      # Set to 15 so legitimate traffic is never blocked; attacks hop 20+ routes.
+      - LATERAL_MOVE_THRESHOLD=15
+      - RATE_LIMIT_RPM=200
+      - OTEL_SERVICE_NAME=soy-risk-analysis
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+    healthcheck:
+      test: ["CMD", "node", "-e",
+             "require('http').get('http://localhost:9000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────
+  # mTLS PRIMITIVE – Nginx sidecar proxies  (profile: mtls)
+  # ─────────────────────────────────────────────────────────
+  cert-init:
+    image: alpine/openssl:latest
+    container_name: soy_cert_init
+    profiles: [mtls]
+    volumes:
+      - ./certs:/certs
+      - ./scripts/generate-certs.sh:/generate-certs.sh:ro
+    entrypoint: ["sh", "/generate-certs.sh"]
+    restart: "no"
+
+  nginx-exercise:
+    image: nginx:1.25-alpine
+    container_name: soy_nginx_exercise
+    profiles: [mtls]
+    networks:
+      - appnet
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+      - ./nginx/mtls-exercise.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      ms-exercise:
+        condition: service_started
+      cert-init:
+        condition: service_completed_successfully
+
+  nginx-other:
+    image: nginx:1.25-alpine
+    container_name: soy_nginx_other
+    profiles: [mtls]
+    networks:
+      - appnet
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
+      - ./nginx/mtls-other.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      ms-other:
+        condition: service_started
+      cert-init:
+        condition: service_completed_successfully
+
+  # ─────────────────────────────────────────────────────────
+  # QUEUE pattern – RabbitMQ AMQP broker  (profile: queue)
+  # ─────────────────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: soy_rabbitmq
+    profiles: [queue]
+    restart: on-failure
+    networks:
+      - appnet
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_TLS_PORT:-5671}:5671"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    volumes:
+      - ./nginx/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./certs:/etc/rabbitmq/certs:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────────────────────────
+  # TOPIC pattern – Kafka + Zookeeper  (profile: topic)
+  # ─────────────────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: soy_zookeeper
+    profiles: [topic]
+    restart: on-failure
+    networks:
+      - appnet
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: soy_kafka
+    profiles: [topic]
+    restart: on-failure
+    networks:
+      - appnet
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+      - "${KAFKA_TLS_PORT:-9093}:9093"
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,SSL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,SSL://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,SSL:SSL
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 1
+      KAFKA_SSL_KEYSTORE_LOCATION: /etc/kafka/ssl/kafka.server.keystore.jks
+      KAFKA_SSL_KEYSTORE_PASSWORD: soy-broker-tls
+      KAFKA_SSL_KEY_PASSWORD: soy-broker-tls
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /etc/kafka/ssl/kafka.server.truststore.jks
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: soy-broker-tls
+      KAFKA_SSL_CLIENT_AUTH: required
+    volumes:
+      - ./certs:/etc/kafka/ssl:ro
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ─────────────────────────────────────────────────────────
+  # OBSERVABILITY  (profile: monitoring)
+  # ─────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    container_name: soy_prometheus
+    profiles: [monitoring]
+    restart: on-failure
+    networks:
+      - appnet
+    ports:
+      - "${PROM_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: soy_grafana
+    profiles: [monitoring]
+    restart: on-failure
+    networks:
+      - appnet
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-soy-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: soy_cadvisor
+    profiles: [monitoring]
+    restart: on-failure
+    privileged: true
+    networks:
+      - appnet
+    ports:
+      - "${CADVISOR_PORT:-8081}:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /run/containerd/containerd.sock:/run/containerd/containerd.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    command:
+      - '--store_container_labels=false'
+      - '--housekeeping_interval=5s'
+
+  node-exporter:
+    image: prom/node-exporter:v1.6.1
+    container_name: soy_node_exporter
+    profiles: [monitoring]
+    restart: on-failure
+    networks:
+      - appnet
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: soy_jaeger
+    profiles: [monitoring]
+    restart: on-failure
+    networks:
+      - appnet
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"    # Jaeger UI
+      - "${JAEGER_OTLP_PORT:-4318}:4318"   # OTLP HTTP receiver
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+networks:
+  appnet:
+    external: true
+
+volumes:
+  prometheus_data:
+  grafana_data:

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>soy</groupId>
+  <artifactId>soy-load-tests</artifactId>
+  <version>1.0.0</version>
+
+  <properties>
+    <gatling.version>3.9.5</gatling.version>
+    <gatling-maven-plugin.version>4.6.0</gatling-maven-plugin.version>
+    <scala-maven-plugin.version>4.8.1</scala-maven-plugin.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+
+    <!-- Load shape defaults – override with -D on the command line -->
+    <soy.baseUrl>http://localhost:5001</soy.baseUrl>
+    <soy.rampUp>60</soy.rampUp>
+    <soy.sustained>300</soy.sustained>
+    <soy.rampDown>60</soy.rampDown>
+    <soy.targetRps>5.0</soy.targetRps>
+    <soy.sessionId>1</soy.sessionId>
+    <soy.exerciseId>1</soy.exerciseId>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>io.gatling.highcharts</groupId>
+      <artifactId>gatling-charts-highcharts</artifactId>
+      <version>${gatling.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Point Maven at the Gatling-conventional source/resource directories -->
+    <testSourceDirectory>src/gatling/scala</testSourceDirectory>
+    <testResources>
+      <testResource>
+        <directory>src/gatling/resources</directory>
+      </testResource>
+    </testResources>
+
+    <plugins>
+      <!-- Scala compiler (needed for .scala simulation files) -->
+      <plugin>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
+        <version>${scala-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <goals><goal>testCompile</goal></goals>
+          </execution>
+        </executions>
+        <configuration>
+          <scalaVersion>2.13.12</scalaVersion>
+          <args>
+            <arg>-deprecation</arg>
+            <arg>-feature</arg>
+          </args>
+        </configuration>
+      </plugin>
+
+      <!-- Gatling runner -->
+      <plugin>
+        <groupId>io.gatling</groupId>
+        <artifactId>gatling-maven-plugin</artifactId>
+        <version>${gatling-maven-plugin.version}</version>
+        <configuration>
+          <simulationClass>soy.SoySimulation</simulationClass>
+          <jvmArgs>
+            <jvmArg>-Xmx512m</jvmArg>
+            <jvmArg>-Dgatling.core.outputDirectoryBaseName=soy-results</jvmArg>
+            <!-- Forward all soy.* properties into the JVM running Gatling -->
+            <jvmArg>-DbaseUrl=${soy.baseUrl}</jvmArg>
+            <jvmArg>-DrampUp=${soy.rampUp}</jvmArg>
+            <jvmArg>-Dsustained=${soy.sustained}</jvmArg>
+            <jvmArg>-DrampDown=${soy.rampDown}</jvmArg>
+            <jvmArg>-DtargetRps=${soy.targetRps}</jvmArg>
+            <jvmArg>-DsessionId=${soy.sessionId}</jvmArg>
+            <jvmArg>-DexerciseId=${soy.exerciseId}</jvmArg>
+          </jvmArgs>
+          <resultsFolder>${project.build.directory}/gatling-results</resultsFolder>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

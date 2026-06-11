@@ -1,0 +1,79 @@
+{
+  "title": "SoY – Zero Trust Security Tax",
+  "uid": "soy-zt",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Container CPU Usage %",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\"soy_.*\"}[1m])) by (name) * 100",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Container Memory Usage (MB)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "container_memory_usage_bytes{name=~\"soy_.*\"} / 1024 / 1024",
+          "legendFormat": "{{name}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Network Received (bytes/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_network_receive_bytes_total{name=~\"soy_.*\"}[1m])) by (name)",
+          "legendFormat": "{{name}} rx"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Network Transmitted (bytes/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_network_transmit_bytes_total{name=~\"soy_.*\"}[1m])) by (name)",
+          "legendFormat": "{{name}} tx"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Host CPU Usage %",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "100 - (avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Host Memory Used %",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 16, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100"
+        }
+      ]
+    }
+  ]
+}
