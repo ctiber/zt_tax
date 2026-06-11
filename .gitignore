@@ -26,7 +26,6 @@ ob-zt/online-boutique/
 *.pyc
 
 # ── Paper (not public) ───────────────────────────────────────────
-paper/
 soy/paper/
 
 # ── AI/editor workspace ──────────────────────────────────────────
