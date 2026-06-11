@@ -14,18 +14,57 @@ LOG="$RESULTS_DIR/sweep_$(date +%Y%m%d_%H%M%S).log"
 
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG"; }
 
+wait_for_gateway() {
+  local deadline=$(( $(date +%s) + 60 ))
+  while [ $(date +%s) -lt $deadline ]; do
+    if curl -sf http://localhost:8080/healthz -o /dev/null 2>/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  log "  WARN: gateway did not become healthy within 60s"
+  return 1
+}
+
+wait_for_prometheus() {
+  local deadline=$(( $(date +%s) + 60 ))
+  while [ $(date +%s) -lt $deadline ]; do
+    if curl -sf http://localhost:9090/-/ready -o /dev/null 2>/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  log "  WARN: Prometheus did not become ready within 60s"
+  return 1
+}
+
+check_port_8080() {
+  if ss -tlnp | grep -q ':8080 ' 2>/dev/null; then
+    local holder
+    holder=$(ss -tlnp | grep ':8080 ' | awk '{print $NF}')
+    log "  ERROR: port 8080 already in use by: $holder"
+    log "  Aborting sweep — free port 8080 and re-run."
+    exit 1
+  fi
+}
+
 run_variant() {
   local variant="$1" pattern="$2"
   local label="v${variant}-${pattern}"
   local out="$RESULTS_DIR/${label}"
   mkdir -p "$out"
 
+  check_port_8080
+
   log "Starting $label..."
   bash scripts/run-variant.sh "$variant" "$pattern" >> "$LOG" 2>&1
 
-  # Wait for services to stabilise
-  log "  Waiting 30s for startup..."
-  sleep 30
+  # Wait for gateway and Prometheus to be healthy before running the test
+  log "  Waiting for gateway and Prometheus to be ready..."
+  wait_for_gateway >> "$LOG" 2>&1 || true
+  wait_for_prometheus >> "$LOG" 2>&1 || true
+  # Extra settle time so cAdvisor has at least 2 scrape cycles (scrape_interval=15s)
+  sleep 35
 
   # Run load test
   log "  Running Gatling (${RPS} rps, ${RAMP}s ramp, ${DURATION}s)..."

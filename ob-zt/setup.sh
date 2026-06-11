@@ -53,13 +53,20 @@ OB = "online-boutique"
 
 def patch(path, *subs):
     with open(path) as f: c = f.read()
+    changed = False
     for old, new in subs:
+        if new in c:
+            continue  # already applied
         if old not in c:
             print(f"  WARN: pattern not found in {path}: {repr(old)[:60]}")
             continue
         c = c.replace(old, new, 1)
-    with open(path, "w") as f: f.write(c)
-    print(f"  patched {path}")
+        changed = True
+    if changed:
+        with open(path, "w") as f: f.write(c)
+        print(f"  patched {path}")
+    else:
+        print(f"  already patched {path}")
 
 # ── Python ─────────────────────────────────────────────────────────────────
 email = f"{OB}/src/emailservice/email_server.py"
@@ -168,10 +175,18 @@ patch(fe,
 # ── Go: checkoutservice ───────────────────────────────────────────────────
 co = f"{OB}/src/checkoutservice/main.go"
 patch(co,
+    # Add ac4a import
     ('"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"\n',
      '"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"\n\t"github.com/GoogleCloudPlatform/microservices-demo/src/checkoutservice/ac4a"\n'),
+    # Server-side AC4A interceptors
     ('\t\tgrpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),\n\t\tgrpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),',
      '\t\tgrpc.ChainUnaryInterceptor(otelgrpc.UnaryServerInterceptor(), ac4a.UnaryInterceptor),\n\t\tgrpc.ChainStreamInterceptor(otelgrpc.StreamServerInterceptor(), ac4a.StreamInterceptor),'),
+    # Client-side JWT propagation in mustConnGRPC (Bug fix: JWT not forwarded to downstream services)
+    ('\t\tgrpc.WithInsecure(),\n\t\tgrpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),\n\t\tgrpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()))',
+     '\t\tgrpc.WithInsecure(),\n\t\tgrpc.WithChainUnaryInterceptor(otelgrpc.UnaryClientInterceptor(), ac4a.PropagateUnaryInterceptor),\n\t\tgrpc.WithChainStreamInterceptor(otelgrpc.StreamClientInterceptor(), ac4a.PropagateStreamInterceptor))'),
+    # Bug fix: convertCurrency used context.TODO(), dropping the JWT stored in ctx
+    ('.Convert(context.TODO(), &pb.CurrencyConversionRequest{',
+     '.Convert(ctx, &pb.CurrencyConversionRequest{'),
 )
 
 # ── Go: productcatalogservice ─────────────────────────────────────────────

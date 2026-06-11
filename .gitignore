@@ -14,6 +14,7 @@ ob-zt/online-boutique/
 # ── Experiment results ────────────────────────────────────────────
 **/results/experiments/
 **/results/experiments_r*/
+**/results/smoke/
 **/results/*_stdout.log
 **/results/sweep_*.log
 
@@ -26,6 +27,16 @@ ob-zt/online-boutique/
 
 # ── Paper (conference submission — not public) ────────────────────
 soy/paper/
+
+# ── LaTeX build artefacts ────────────────────────────────────────
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.fdb_latexmk
+paper/*.fls
+paper/*.log
+paper/*.out
+paper/main.tex.bak
 
 # ── AI/editor workspace ──────────────────────────────────────────
 **/.claude/

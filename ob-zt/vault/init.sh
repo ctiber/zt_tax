@@ -9,7 +9,7 @@ vault secrets enable -path=secret kv 2>/dev/null || true
 
 echo "[vault-init] writing JWT_SECRET..."
 vault kv put secret/ob-zt/config \
-  jwt_secret="${JWT_SECRET:-dev-secret-change-me}"
+  jwt_secret="${JWT_SECRET:-dev-secret-change-me-zt-tax-expr}"
 
 echo "[vault-init] creating policy..."
 vault policy write ob-zt-reader - <<EOF
