@@ -63,19 +63,22 @@ while [[ $# -gt 0 ]]; do
     --jaeger-url) JAEGER_URL="$2"; shift 2 ;;
     --cooldown)   COOLDOWN="$2";   shift 2 ;;
     --outdir)     OUTDIR="$2";     shift 2 ;;
+    --runs)       RUNS="$2";       shift 2 ;;
     --dry-run)    DRY_RUN=true;    shift   ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
+RUNS="${RUNS:-1}"
 mkdir -p "$OUTDIR"
 
 TOTAL=0
-for v in $VARIANTS; do for p in $PATTERNS; do TOTAL=$((TOTAL + 1)); done; done
+for v in $VARIANTS; do for p in $PATTERNS; do TOTAL=$((TOTAL + RUNS)); done; done
 echo "═══════════════════════════════════════════════════════"
 echo "  SoY Experiment Sweep"
 echo "  Variants  : $VARIANTS"
 echo "  Patterns  : $PATTERNS"
+echo "  Runs/combo: $RUNS"
 echo "  Total runs: $TOTAL"
 echo "  Shape     : rampUp=${RAMP_UP}s  sustained=${SUSTAINED}s  rampDown=${RAMP_DOWN}s"
 echo "  RPS       : $TARGET_RPS"
@@ -88,11 +91,16 @@ FAILED=()
 
 for VARIANT in $VARIANTS; do
   for PATTERN in $PATTERNS; do
+    for (( RUN_IDX=1; RUN_IDX<=RUNS; RUN_IDX++ )); do
     RUN_NUM=$((RUN_NUM + 1))
     # Include target RPS in the label so sweeps at different loads
     # land in separate directories and never overwrite each other.
     RPS_TAG=$(echo "$TARGET_RPS" | sed 's/\.0$//')   # 5.0 → 5, 35.0 → 35
-    LABEL="v${VARIANT}_${PATTERN}_rps${RPS_TAG}"
+    if [[ "$RUNS" -gt 1 ]]; then
+      LABEL="v${VARIANT}_${PATTERN}_rps${RPS_TAG}_run${RUN_IDX}"
+    else
+      LABEL="v${VARIANT}_${PATTERN}_rps${RPS_TAG}"
+    fi
     RUN_DIR="$OUTDIR/$LABEL"
 
     echo ""
@@ -215,8 +223,9 @@ METAEOF
     echo "  ✓ Done → $RUN_DIR"
     echo "  ⏸  Cooldown ${COOLDOWN}s before next run..."
     sleep "$COOLDOWN"
-  done
-done
+    done  # runs loop
+  done   # patterns loop
+done     # variants loop
 
 # ── Summary ────────────────────────────────────────────────
 echo ""

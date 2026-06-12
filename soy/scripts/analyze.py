@@ -318,6 +318,85 @@ def load_run(run_dir: Path) -> 'dict | None':
 
 
 # ─────────────────────────────────────────────────────────────────
+# MULTI-RUN AGGREGATION
+# ─────────────────────────────────────────────────────────────────
+
+def _median(vals):
+    import statistics
+    clean = [v for v in vals if v is not None and not (isinstance(v, float) and math.isnan(v))]
+    return statistics.median(clean) if clean else float('nan')
+
+def _mean_or_nan(vals):
+    clean = [v for v in vals if v is not None and not (isinstance(v, float) and math.isnan(v))]
+    return sum(clean) / len(clean) if clean else float('nan')
+
+def aggregate_runs_by_key(runs: list) -> list:
+    """
+    Group runs by (variant, pattern, target_rps).
+    When a group has >1 run, median-aggregate latency stats and
+    mean-aggregate spans/resources; concatenate raw durations for box plots.
+    Single-run groups are returned unchanged.
+    """
+    from collections import defaultdict
+    groups: dict = defaultdict(list)
+    for r in runs:
+        key = (r.get('variant', ''), r.get('pattern', ''), r.get('target_rps', 5.0))
+        groups[key].append(r)
+
+    aggregated = []
+    for key, group in sorted(groups.items(), key=lambda x: (int(x[0][0] or 0), x[0][1], x[0][2])):
+        if len(group) == 1:
+            group[0]['_n_runs'] = 1
+            aggregated.append(group[0])
+            continue
+
+        base = {k: v for k, v in group[0].items()}
+        base['_n_runs'] = len(group)
+        base['_run_label'] = group[0]['_run_label'].rsplit('_run', 1)[0]  # strip _runN suffix
+
+        stat_fields = ('p50', 'p75', 'p90', 'p95', 'p99', 'p999', 'mean',
+                       'throughput', 'failure_rate')
+        for scenario in ('s1', 's2'):
+            agg = dict(base[scenario])
+            for f in stat_fields:
+                vals = [r[scenario].get(f) for r in group]
+                agg[f] = _median(vals)
+            agg['count'] = sum(r[scenario].get('count', 0) for r in group)
+            # Concatenate raw durations so box plots show all data points
+            agg['durations'] = [d for r in group for d in r[scenario].get('durations', [])]
+            base[scenario] = agg
+
+        # Spans: mean across runs
+        if all('spans' in r for r in group):
+            all_span_keys = set(k for r in group for k in r['spans'])
+            merged_spans = {}
+            for sk in all_span_keys:
+                span_vals = [r['spans'].get(sk, {}) for r in group]
+                merged_spans[sk] = {
+                    'mean_ms':  _mean_or_nan([s.get('mean_ms')  for s in span_vals]),
+                    'p99_ms':   _mean_or_nan([s.get('p99_ms')   for s in span_vals]),
+                    'count':    sum(s.get('count', 0)            for s in span_vals),
+                }
+            base['spans'] = merged_spans
+
+        # Resources: mean across runs
+        if all('resources' in r for r in group):
+            all_containers = set(c for r in group for c in r['resources'])
+            merged_res = {}
+            for c in all_containers:
+                res_vals = [r['resources'].get(c, {}) for r in group]
+                merged_res[c] = {
+                    'cpu_pct': _mean_or_nan([s.get('cpu_pct') for s in res_vals]),
+                    'mem_mb':  _mean_or_nan([s.get('mem_mb')  for s in res_vals]),
+                }
+            base['resources'] = merged_res
+
+        aggregated.append(base)
+
+    return aggregated
+
+
+# ─────────────────────────────────────────────────────────────────
 # TABLE FORMATTERS
 # ─────────────────────────────────────────────────────────────────
 
@@ -829,7 +908,15 @@ def main():
     if len(runs) < before:
         print(f"  ⚠  Excluded {before - len(runs)} contaminated run(s): {EXCLUDED}")
 
-    print(f"\nGenerating tables ({len(runs)} runs) ...")
+    # Aggregate multiple runs for the same (variant, pattern, rps) — median latency
+    runs = aggregate_runs_by_key(runs)
+    n_groups = len(runs)
+    n_multi  = sum(1 for r in runs if r.get('_n_runs', 1) > 1)
+    if n_multi:
+        print(f"  Aggregated into {n_groups} variant×pattern groups "
+              f"({n_multi} with >1 run, median latency)")
+
+    print(f"\nGenerating tables ({len(runs)} variant×pattern combinations) ...")
     write_latency_table(runs,  outdir / 'tables' / 'latency.tex')
     write_kappa_table(runs,    outdir / 'tables' / 'kappa.tex')
     write_failure_table(runs,  outdir / 'tables' / 'failure_rates.tex')
