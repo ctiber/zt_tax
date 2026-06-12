@@ -246,9 +246,9 @@ def match_service(container_name: str) -> str | None:
 
 
 def extract_variant_pattern_run(dirname: str):
-    m = re.match(r"v(\d+)-(http|queue)(?:-run(\d+))?$", dirname)
+    m = re.match(r"v(\d+)-(http|queue)-run(\d+)$", dirname)
     if m:
-        return int(m.group(1)), m.group(2), int(m.group(3) or 1)
+        return int(m.group(1)), m.group(2), int(m.group(3))
     return None, None, None
 
 

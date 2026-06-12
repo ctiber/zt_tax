@@ -13,7 +13,7 @@ import csv
 import json
 import re
 from pathlib import Path
-from statistics import median, quantiles
+from statistics import median, quantiles, stdev
 
 VARIANT_NAMES = {
     1: "baseline",
@@ -70,8 +70,8 @@ def find_simulation_log(run_dir: Path) -> Path | None:
 
 
 def extract_variant_pattern(dirname: str):
-    # Matches both v1-http and v1-http-run2 (multi-run directories)
-    m = re.match(r"v(\d+)-(http|queue)(?:-run\d+)?$", dirname)
+    # Only match explicit run directories (v1-http-run2) to avoid stale single-run dirs
+    m = re.match(r"v(\d+)-(http|queue)-run\d+$", dirname)
     if m:
         return int(m.group(1)), m.group(2)
     return None, None
@@ -97,22 +97,26 @@ def main():
         metrics = parse_gatling_log(sim_log)
         if not metrics:
             continue
+        # Skip clearly failed runs (>10% error rate) — likely transient saturation
+        if metrics.get("error_pct", 0) > 10.0:
+            print(f"  SKIP {run_dir.name}: {metrics['error_pct']:.1f}% errors", file=sys.stderr)
+            continue
         groups.setdefault((variant, pattern), []).append(metrics)
 
     rows = []
     for (variant, pattern), run_metrics in sorted(groups.items()):
-        def avg(field):
+        def med(field):
             vals = [m[field] for m in run_metrics if m.get(field) is not None]
-            return round(sum(vals) / len(vals), 1) if vals else 0.0
+            return round(median(vals), 1) if vals else 0.0
         rows.append({
             "variant":   variant,
             "label":     VARIANT_NAMES.get(variant, f"v{variant}"),
             "pattern":   pattern,
             "n_runs":    len(run_metrics),
-            "p50_ms":    avg("p50_ms"),
-            "p99_ms":    avg("p99_ms"),
-            "mean_ms":   avg("mean_ms"),
-            "error_pct": avg("error_pct"),
+            "p50_ms":    med("p50_ms"),
+            "p99_ms":    med("p99_ms"),
+            "mean_ms":   med("mean_ms"),
+            "error_pct": med("error_pct"),
         })
 
     if not rows:
