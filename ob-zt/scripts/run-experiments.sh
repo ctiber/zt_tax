@@ -1,14 +1,24 @@
 #!/usr/bin/env bash
-# Runs all experiment variants × patterns and collects metrics.
-# Usage: bash scripts/run-experiments.sh [rps] [rampup] [duration] [results_dir]
+# Runs all experiment variants × patterns × runs and collects metrics.
+# Usage: bash scripts/run-experiments.sh [rps] [rampup] [duration] [runs]
+#
+#   rps      — requests per second for Gatling (default: 30)
+#   rampup   — ramp-up duration in seconds    (default: 60)
+#   duration — sustained load in seconds      (default: 300)
+#   runs     — number of repetitions per variant×pattern (default: 3)
+#
+# Results layout:
+#   results/experiments/v<V>-<P>/          ← symlink to latest run (backwards compat)
+#   results/experiments/v<V>-<P>-run<N>/   ← individual run data
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 RPS="${1:-30}"
 RAMP="${2:-60}"
 DURATION="${3:-300}"
-RESULTS_DIR="results/experiments"
+RUNS="${4:-3}"
 
+RESULTS_DIR="results/experiments"
 mkdir -p "$RESULTS_DIR"
 LOG="$RESULTS_DIR/sweep_$(date +%Y%m%d_%H%M%S).log"
 
@@ -48,25 +58,23 @@ check_port_8080() {
   fi
 }
 
-run_variant() {
-  local variant="$1" pattern="$2"
+run_once() {
+  local variant="$1" pattern="$2" run_n="$3"
   local label="v${variant}-${pattern}"
-  local out="$RESULTS_DIR/${label}"
+  local out="$RESULTS_DIR/${label}-run${run_n}"
   mkdir -p "$out"
 
   check_port_8080
 
-  log "Starting $label..."
+  log "Starting ${label} run ${run_n}/${RUNS}..."
   bash scripts/run-variant.sh "$variant" "$pattern" >> "$LOG" 2>&1
 
-  # Wait for gateway and Prometheus to be healthy before running the test
   log "  Waiting for gateway and Prometheus to be ready..."
-  wait_for_gateway >> "$LOG" 2>&1 || true
+  wait_for_gateway  >> "$LOG" 2>&1 || true
   wait_for_prometheus >> "$LOG" 2>&1 || true
-  # Extra settle time so cAdvisor has at least 2 scrape cycles (scrape_interval=15s)
+  # Extra settle time: at least 2 docker-stats-exporter scrape cycles (15 s each)
   sleep 35
 
-  # Run load test
   log "  Running Gatling (${RPS} rps, ${RAMP}s ramp, ${DURATION}s)..."
   mvn -f load-tests/pom.xml gatling:test \
     -DbaseUrl="http://localhost:8080" \
@@ -74,30 +82,36 @@ run_variant() {
     -DrampUp="$RAMP" \
     -Dduration="$DURATION" \
     "-Dgatling.resultsFolder=$(pwd)/$out/gatling" \
-    >> "$LOG" 2>&1 || log "  WARN: Gatling exited non-zero for $label"
+    >> "$LOG" 2>&1 || log "  WARN: Gatling exited non-zero for ${label} run ${run_n}"
 
-  # Collect Prometheus metrics snapshot (window = ramp + duration + 2 min margin)
   local window_min=$(( (RAMP + DURATION) / 60 + 2 ))
   log "  Collecting metrics (window=${window_min}m)..."
   bash scripts/collect-metrics.sh "$label" "$out" "$window_min" >> "$LOG" 2>&1 || true
 
-  # Tear down
-  log "  Stopping $label..."
+  log "  Stopping ${label} run ${run_n}..."
   bash scripts/stop-variant.sh >> "$LOG" 2>&1
   sleep 10
+
+  # Update backwards-compatible symlink to latest run
+  local link="$RESULTS_DIR/${label}"
+  ln -sfn "$(basename "$out")" "$link"
 }
 
 VARIANTS=(1 2 3 4 5 6 7)
 PATTERNS=(http queue)
+TOTAL=$(( ${#VARIANTS[@]} * ${#PATTERNS[@]} * RUNS ))
 
-log "=== ob-zt experiment sweep: ${#VARIANTS[@]} variants × ${#PATTERNS[@]} patterns ==="
+log "=== ob-zt experiment sweep: ${#VARIANTS[@]} variants × ${#PATTERNS[@]} patterns × ${RUNS} runs = ${TOTAL} total ==="
 log "    RPS=$RPS  RAMP=${RAMP}s  DURATION=${DURATION}s"
 
 for v in "${VARIANTS[@]}"; do
   for p in "${PATTERNS[@]}"; do
-    run_variant "$v" "$p"
+    for (( n=1; n<=RUNS; n++ )); do
+      run_once "$v" "$p" "$n"
+    done
   done
 done
 
 log "=== Sweep complete. Results in $RESULTS_DIR ==="
 log "    Run: python3 scripts/analyze.py $RESULTS_DIR"
+log "    Run: python3 scripts/analyze-resources.py $RESULTS_DIR"

@@ -70,7 +70,8 @@ def find_simulation_log(run_dir: Path) -> Path | None:
 
 
 def extract_variant_pattern(dirname: str):
-    m = re.match(r"v(\d+)-(http|queue)", dirname)
+    # Matches both v1-http and v1-http-run2 (multi-run directories)
+    m = re.match(r"v(\d+)-(http|queue)(?:-run\d+)?$", dirname)
     if m:
         return int(m.group(1)), m.group(2)
     return None, None
@@ -82,25 +83,36 @@ def main():
         print(f"ERROR: {results_dir} does not exist.", file=sys.stderr)
         sys.exit(1)
 
-    rows = []
+    # Collect all runs, group by (variant, pattern), then average across runs
+    groups: dict[tuple, list] = {}
     for run_dir in sorted(results_dir.iterdir()):
-        if not run_dir.is_dir():
+        if not run_dir.is_dir() or run_dir.is_symlink():
             continue
         variant, pattern = extract_variant_pattern(run_dir.name)
         if variant is None:
             continue
         sim_log = find_simulation_log(run_dir)
         if not sim_log:
-            print(f"  WARN: no simulation.log in {run_dir}")
             continue
         metrics = parse_gatling_log(sim_log)
         if not metrics:
             continue
+        groups.setdefault((variant, pattern), []).append(metrics)
+
+    rows = []
+    for (variant, pattern), run_metrics in sorted(groups.items()):
+        def avg(field):
+            vals = [m[field] for m in run_metrics if m.get(field) is not None]
+            return round(sum(vals) / len(vals), 1) if vals else 0.0
         rows.append({
-            "variant":    variant,
-            "label":      VARIANT_NAMES.get(variant, f"v{variant}"),
-            "pattern":    pattern,
-            **metrics,
+            "variant":   variant,
+            "label":     VARIANT_NAMES.get(variant, f"v{variant}"),
+            "pattern":   pattern,
+            "n_runs":    len(run_metrics),
+            "p50_ms":    avg("p50_ms"),
+            "p99_ms":    avg("p99_ms"),
+            "mean_ms":   avg("mean_ms"),
+            "error_pct": avg("error_pct"),
         })
 
     if not rows:
@@ -108,11 +120,12 @@ def main():
         return
 
     # Print table
-    header = f"{'var':>3}  {'label':<12}  {'pattern':<5}  {'p50':>7}  {'p99':>7}  {'mean':>7}  {'err%':>6}"
+    header = f"{'var':>3}  {'label':<12}  {'pattern':<5}  {'runs':>4}  {'p50':>7}  {'p99':>7}  {'mean':>7}  {'err%':>6}"
     print(header)
     print("-" * len(header))
     for r in sorted(rows, key=lambda x: (x["pattern"], x["variant"])):
         print(f"{r['variant']:>3}  {r['label']:<12}  {r['pattern']:<5}  "
+              f"{r.get('n_runs',1):>4}  "
               f"{r['p50_ms']:>7.1f}  {r['p99_ms']:>7.1f}  {r['mean_ms']:>7.1f}  "
               f"{r['error_pct']:>6.2f}")
 

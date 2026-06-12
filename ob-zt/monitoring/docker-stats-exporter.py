@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
 """
-Minimal Prometheus exporter for Docker container CPU and memory stats.
+Prometheus exporter for Docker container CPU, memory, and network stats.
 Uses only Python stdlib — calls the Docker Engine API via the Unix socket.
 Exposes /metrics on port 9338 in Prometheus text format.
+
+Metrics exported:
+  docker_container_cpu_percent{name,id}            CPU % (1 core = 100%)
+  docker_container_memory_rss_bytes{name,id}       RSS memory in bytes
+  docker_container_network_rx_bytes_total{name,id} cumulative bytes received
+  docker_container_network_tx_bytes_total{name,id} cumulative bytes sent
+  docker_container_network_rx_packets_total{name,id}
+  docker_container_network_tx_packets_total{name,id}
 """
 import http.server
 import json
@@ -14,7 +22,8 @@ DOCKER_SOCK = "/var/run/docker.sock"
 PORT = 9338
 SCRAPE_INTERVAL = 15  # seconds — match Prometheus scrape_interval
 
-_cache: list[tuple[str, str, float, float]] = []  # (name, id, cpu%, mem_bytes)
+# (name, id, cpu%, mem_bytes, net_rx_bytes, net_tx_bytes, net_rx_pkts, net_tx_pkts)
+_cache: list[tuple] = []
 _cache_lock = threading.Lock()
 
 
@@ -31,7 +40,6 @@ def docker_get(path: str) -> bytes:
             break
         buf += chunk
     sock.close()
-    # Strip HTTP headers
     sep = buf.find(b"\r\n\r\n")
     return buf[sep + 4:] if sep != -1 else buf
 
@@ -59,7 +67,21 @@ def mem_rss(stats: dict) -> float:
         return 0.0
 
 
-def collect_once() -> list[tuple[str, str, float, float]]:
+def net_stats(stats: dict) -> tuple[float, float, float, float]:
+    """Returns (rx_bytes, tx_bytes, rx_packets, tx_packets) summed across all interfaces."""
+    rx_b = tx_b = rx_p = tx_p = 0.0
+    try:
+        for iface_stats in stats.get("networks", {}).values():
+            rx_b += iface_stats.get("rx_bytes", 0)
+            tx_b += iface_stats.get("tx_bytes", 0)
+            rx_p += iface_stats.get("rx_packets", 0)
+            tx_p += iface_stats.get("tx_packets", 0)
+    except (KeyError, TypeError):
+        pass
+    return rx_b, tx_b, rx_p, tx_p
+
+
+def collect_once() -> list[tuple]:
     containers_raw = docker_get("/containers/json")
     containers = json.loads(containers_raw)
     results = []
@@ -69,7 +91,10 @@ def collect_once() -> list[tuple[str, str, float, float]]:
         try:
             stats_raw = docker_get(f"/containers/{cid}/stats?stream=false")
             stats = json.loads(stats_raw)
-            results.append((name, cid[:12], cpu_percent(stats), mem_rss(stats)))
+            cpu = cpu_percent(stats)
+            mem = mem_rss(stats)
+            rx_b, tx_b, rx_p, tx_p = net_stats(stats)
+            results.append((name, cid[:12], cpu, mem, rx_b, tx_b, rx_p, tx_p))
         except Exception:
             pass
     return results
@@ -95,18 +120,49 @@ class MetricsHandler(http.server.BaseHTTPRequestHandler):
             return
         with _cache_lock:
             data = list(_cache)
+
         lines = [
             "# HELP docker_container_cpu_percent CPU usage percent (1 core = 100%)",
             "# TYPE docker_container_cpu_percent gauge",
         ]
-        for name, cid, cpu, _ in data:
+        for name, cid, cpu, *_ in data:
             lines.append(f'docker_container_cpu_percent{{name="{name}",id="{cid}"}} {cpu:.4f}')
+
         lines += [
             "# HELP docker_container_memory_rss_bytes RSS memory in bytes",
             "# TYPE docker_container_memory_rss_bytes gauge",
         ]
-        for name, cid, _, mem in data:
+        for name, cid, _, mem, *__ in data:
             lines.append(f'docker_container_memory_rss_bytes{{name="{name}",id="{cid}"}} {mem:.0f}')
+
+        lines += [
+            "# HELP docker_container_network_rx_bytes_total Cumulative bytes received",
+            "# TYPE docker_container_network_rx_bytes_total counter",
+        ]
+        for name, cid, _, _m, rx_b, tx_b, rx_p, tx_p in data:
+            lines.append(f'docker_container_network_rx_bytes_total{{name="{name}",id="{cid}"}} {rx_b:.0f}')
+
+        lines += [
+            "# HELP docker_container_network_tx_bytes_total Cumulative bytes sent",
+            "# TYPE docker_container_network_tx_bytes_total counter",
+        ]
+        for name, cid, _, _m, rx_b, tx_b, rx_p, tx_p in data:
+            lines.append(f'docker_container_network_tx_bytes_total{{name="{name}",id="{cid}"}} {tx_b:.0f}')
+
+        lines += [
+            "# HELP docker_container_network_rx_packets_total Cumulative packets received",
+            "# TYPE docker_container_network_rx_packets_total counter",
+        ]
+        for name, cid, _, _m, rx_b, tx_b, rx_p, tx_p in data:
+            lines.append(f'docker_container_network_rx_packets_total{{name="{name}",id="{cid}"}} {rx_p:.0f}')
+
+        lines += [
+            "# HELP docker_container_network_tx_packets_total Cumulative packets sent",
+            "# TYPE docker_container_network_tx_packets_total counter",
+        ]
+        for name, cid, _, _m, rx_b, tx_b, rx_p, tx_p in data:
+            lines.append(f'docker_container_network_tx_packets_total{{name="{name}",id="{cid}"}} {tx_p:.0f}')
+
         body = "\n".join(lines) + "\n"
         self.send_response(200)
         self.send_header("Content-Type", "text/plain; version=0.0.4")
@@ -115,14 +171,13 @@ class MetricsHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(body.encode())
 
     def log_message(self, *args):
-        pass  # suppress access log noise
+        pass
 
 
 if __name__ == "__main__":
     print(f"Starting docker-stats-exporter on :{PORT}")
     t = threading.Thread(target=background_collect, daemon=True)
     t.start()
-    # Give first collection a moment
     time.sleep(2)
     server = http.server.HTTPServer(("0.0.0.0", PORT), MetricsHandler)
     server.serve_forever()

@@ -10,6 +10,16 @@ const { createProxyMiddleware, fixRequestBody } = require('http-proxy-middleware
 const https    = require('https');
 const fs       = require('fs');
 const { trace } = require('@opentelemetry/api');
+const promClient = require('prom-client');
+
+// ── Prometheus metrics ───────────────────────────────────────────────────────
+// Disable default Node.js metrics — only expose RA-specific histogram.
+const raHistogram = new promClient.Histogram({
+  name: 'zt_ra_call_duration_seconds',
+  help: 'Duration of gateway Risk Analysis HTTP calls in seconds',
+  buckets: [0.001, 0.002, 0.005, 0.010, 0.020, 0.050,
+            0.100, 0.200, 0.500, 1.0, 2.0, 5.0],
+});
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const PORT          = parseInt(process.env.PORT || '8080');
@@ -77,16 +87,18 @@ function verifyJWT(req, res, next) {
 async function callRA(req, res, next) {
   if (!ZT_RA) return next();
   const span = trace.getActiveSpan();
-  const t0 = Date.now();
+  const endTimer = raHistogram.startTimer();
   try {
     await axios.post(`${RA_URL}/analyze`, {
       userId: req.jwtPayload?.userId || 'anonymous',
       method: req.method,
       path:   req.path,
     }, { timeout: 5000 });
-    if (span) span.setAttribute('zt.risk_analysis.ms', Date.now() - t0);
+    const durationMs = endTimer() * 1000; // startTimer returns seconds
+    if (span) span.setAttribute('zt.risk_analysis.ms', durationMs);
     next();
   } catch (err) {
+    endTimer();
     const status = err.response?.status;
     if (status === 429 || status === 403) {
       res.status(403).json({ error: 'request blocked by risk analysis' });
@@ -168,6 +180,12 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check (no auth)
 app.get('/healthz', (_, res) => res.json({ status: 'ok' }));
+
+// Prometheus metrics endpoint (no auth)
+app.get('/zt/metrics', async (_, res) => {
+  res.set('Content-Type', promClient.register.contentType);
+  res.end(await promClient.register.metrics());
+});
 
 // Login endpoint — issues JWT (no ZT primitives applied here)
 app.post('/zt/login', (req, res) => {

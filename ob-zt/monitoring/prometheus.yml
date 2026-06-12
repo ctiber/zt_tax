@@ -3,9 +3,14 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: zt-gateway
+  - job_name: zt-gateway-otel
     static_configs:
       - targets: ["zt-gateway:9464"]
+
+  - job_name: zt-gateway-ra
+    static_configs:
+      - targets: ["zt-gateway:8080"]
+    metrics_path: /zt/metrics
 
   - job_name: risk-analysis
     static_configs:
