@@ -2,7 +2,7 @@
 
 Replication package for the paper:
 
-> **The Security Tax of Zero Trust Primitive Placement in Microservice Applications**
+> **Placement Determines Predictability: Zero Trust Overhead Across Microservice Topologies**
 
 The study measures the latency and resource overhead of four Zero Trust
 primitives — Access Control on All services (AC4A), Secret Rotation (SR),
