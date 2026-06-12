@@ -6,8 +6,9 @@
 
 set -e
 
-# Resolve output directory
-CERTS_DIR="${CERTS_DIR:-/home/chouki/Bureau/soy/certs}"
+# Resolve output directory: Docker cert-init mounts /certs; on host use repo certs/
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CERTS_DIR="${CERTS_DIR:-${SCRIPT_DIR}/../certs}"
 [ -d /certs ] && CERTS_DIR=/certs
 
 DAYS=3650

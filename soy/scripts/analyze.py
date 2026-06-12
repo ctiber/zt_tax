@@ -55,7 +55,7 @@ except ImportError:
 # PARSING HELPERS
 # ─────────────────────────────────────────────────────────────────
 
-def parse_simulation_log(log_path: 'Path') -> pd.DataFrame:
+def parse_simulation_log(log_path: 'Path') -> 'pd.DataFrame':
     """Parse Gatling simulation.log into a DataFrame of requests."""
     rows = []
     with open(log_path) as f:
@@ -472,8 +472,9 @@ def write_resource_table(runs: list, out_path: Path):
     lines = [
         r'\begin{tabular}{lrrrrrr}',
         r'\toprule',
-        r'Variant & GW CPU & MS-other CPU & MS-ex CPU & GW Mem & MS-other Mem & MS-ex Mem \\',
-        r' & (\%) & (\%) & (\%) & (MB) & (MB) & (MB) \\',
+        r'Variant & \multicolumn{3}{c}{CPU (\%)} & \multicolumn{3}{c}{Mem (MB)} \\',
+        r'\cmidrule(lr){2-4}\cmidrule(lr){5-7}',
+        r' & GW & Other & Exer. & GW & Other & Exer. \\',
         r'\midrule',
     ]
     for r in sorted(http_runs, key=lambda x: int(x['variant'])):

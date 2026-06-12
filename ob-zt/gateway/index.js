@@ -21,7 +21,7 @@ const JWT_SECRET    = process.env.JWT_SECRET    || 'dev-secret-change-me';
 const JWT_EXPIRY    = process.env.JWT_EXPIRY    || '1h';
 
 // Feature flags
-const ZT_AUTH  = process.env.ZT_AUTH  !== 'false';  // always on (gateway always authenticates)
+const ZT_AUTH  = process.env.ZT_AUTH  === 'true';
 const ZT_RA    = process.env.ZT_RA    === 'true';
 const ZT_MTLS  = process.env.ZT_MTLS  === 'true';
 

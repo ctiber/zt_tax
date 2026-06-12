@@ -1,26 +1,15 @@
-\begin{tabular}{lrrrrrrrrrrrrrrrrrrrr}
+\begin{tabular}{lrr}
 \toprule
-Variant & \multicolumn{4}{c}{GRPC} & \multicolumn{4}{c}{HTTP} & \multicolumn{4}{c}{QUEUE} & \multicolumn{4}{c}{TOPIC} & \multicolumn{4}{c}{WEBSOCKET} \\
-\cmidrule(lr){2-5}\cmidrule(lr){6-9}\cmidrule(lr){10-13}\cmidrule(lr){14-17}\cmidrule(lr){18-21}
- & 5~RPS & 15~RPS & 20~RPS & 35~RPS & 5~RPS & 15~RPS & 20~RPS & 35~RPS & 5~RPS & 15~RPS & 20~RPS & 35~RPS & 5~RPS & 15~RPS & 20~RPS & 35~RPS & 5~RPS & 15~RPS & 20~RPS & 35~RPS \\
+Variant & \multicolumn{1}{c}{HTTP} & \multicolumn{1}{c}{QUEUE} \\
+\cmidrule(lr){2-2}\cmidrule(lr){3-3}
+ & 30~RPS & 30~RPS \\
 \midrule
-v1-baseline & 0.0 & 0.0 & 0.0 & \textemdash & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 & 0.0 & \textemdash & 0.0 & \textemdash & 0.0 & \textemdash & 0.0 & \textemdash & 0.0 & \textemdash \\
-v2-ac4a & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v3-sr & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v4-mtls & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v5-ra & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v6-ac4a-sr & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v7-ac4a-mtls & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v8-ac4a-ra & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v9-sr-mtls & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v10-sr-ra & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v11-mtls-ra & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v12-ac4a-sr-mtls & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v13-ac4a-sr-ra & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v14-ac4a-mtls-ra & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v15-sr-mtls-ra & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v16-all & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & 0.0 & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash \\
-v17-ra-ms & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash & \textemdash & \textemdash & 0.0 & \textemdash \\
-v18-all-broker-mtls & \textemdash & \textemdash & 50.0 & \textemdash & \textemdash & \textemdash & 50.0 & \textemdash & \textemdash & \textemdash & 50.0 & \textemdash & \textemdash & \textemdash & 50.0 & \textemdash & \textemdash & \textemdash & 50.0 & \textemdash \\
+v1-baseline & 25.0 & 25.0 \\
+v2-ac4a & 25.0 & 25.0 \\
+v3-sr & 25.0 & 25.0 \\
+v4-mtls & 25.0 & 25.0 \\
+v5-ra & 25.0 & 25.0 \\
+v6-all & 25.0 & 25.0 \\
+v7-ra-ms & 25.0 & 25.0 \\
 \bottomrule
 \end{tabular}

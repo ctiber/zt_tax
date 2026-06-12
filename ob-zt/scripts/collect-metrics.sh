@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Collects cAdvisor CPU and memory metrics from Prometheus for a completed run.
+# Collects CPU and memory metrics from Prometheus for a completed run.
 # Queries are issued while containers are still running (before stop-variant.sh).
 # Usage: collect-metrics.sh <label> <output-dir> [test_window_minutes]
 #   test_window_minutes: lookback window covering ramp+test (default: 9)
@@ -24,33 +24,35 @@ prom_query() {
 echo "  Querying Prometheus for $LABEL (window=${WINDOW}m)..."
 
 # ── CPU: average % of one core used during the test window ──────────────────
-# rate() over the window gives mean CPU fraction; *100 converts to percent.
-# Excludes monitoring infrastructure (cadvisor, prometheus, grafana, jaeger).
+# docker-stats-exporter exposes docker_container_cpu_percent{name=...}
+# Excludes monitoring infrastructure containers.
 prom_query \
   "avg by (name) (
-     rate(container_cpu_usage_seconds_total{
+     avg_over_time(docker_container_cpu_percent{
        name=~\"ob-zt-.*\",
-       name!~\".*-(cadvisor|prometheus|grafana|jaeger)-.*\"
-     }[${WINDOW}m]) * 100
+       name!~\".*-(cadvisor|prometheus|grafana|jaeger|docker-stats)-.*\"
+     }[${WINDOW}m])
    )" \
   "$OUT/cpu_avg.json"
 
-# ── Memory: RSS in bytes at query time (containers still running) ────────────
+# ── Memory: RSS in bytes (averaged over test window) ─────────────────────────
 prom_query \
-  "container_memory_rss{
-     name=~\"ob-zt-.*\",
-     name!~\".*-(cadvisor|prometheus|grafana|jaeger)-.*\"
-   }" \
+  "avg by (name) (
+     avg_over_time(docker_container_memory_rss_bytes{
+       name=~\"ob-zt-.*\",
+       name!~\".*-(cadvisor|prometheus|grafana|jaeger|docker-stats)-.*\"
+     }[${WINDOW}m])
+   )" \
   "$OUT/mem_rss.json"
 
 # ── Peak CPU per container during the window ─────────────────────────────────
 prom_query \
-  "max_over_time(
-     rate(container_cpu_usage_seconds_total{
+  "max by (name) (
+     max_over_time(docker_container_cpu_percent{
        name=~\"ob-zt-.*\",
-       name!~\".*-(cadvisor|prometheus|grafana|jaeger)-.*\"
-     }[1m])[${WINDOW}m:15s]
-   ) * 100" \
+       name!~\".*-(cadvisor|prometheus|grafana|jaeger|docker-stats)-.*\"
+     }[${WINDOW}m])
+   )" \
   "$OUT/cpu_peak.json"
 
 echo "  Metrics saved to $OUT"

@@ -41,8 +41,7 @@ services:
   # FRONTEND
   # ─────────────────────────────────────────────────────────
   front:
-    build:
-      context: ./FrontReact
+    image: icws24submission/front_v5:latest
     container_name: soy_front
     profiles: [front]
     security_opt:
@@ -58,12 +57,10 @@ services:
   # DATABASE
   # ─────────────────────────────────────────────────────────
   postgres:
-    build:
-      context: ./soy-db
+    image: icws24submission/postgres_icws24:latest
     container_name: soy_postgres
+    user: "0"
     shm_size: 1g
-    security_opt:
-      - no-new-privileges:true
     restart: on-failure
     env_file:
       - variables.env
@@ -76,8 +73,7 @@ services:
   # API GATEWAY
   # ─────────────────────────────────────────────────────────
   gateway:
-    build:
-      context: ./gateway-http
+    image: icws24submission/gateway_icws24:latest
     container_name: soy_gateway
     security_opt:
       - no-new-privileges:true
@@ -104,8 +100,7 @@ services:
   # MICROSERVICES
   # ─────────────────────────────────────────────────────────
   ms-exercise:
-    build:
-      context: ./exercise-http
+    image: icws24submission/exercise_icws24:latest
     container_name: soy_ms_exercise
     security_opt:
       - no-new-privileges:true
@@ -125,8 +120,7 @@ services:
       - ./proto:/app/proto:ro
 
   ms-other:
-    build:
-      context: ./other-http
+    image: icws24submission/other_icws24:latest
     container_name: soy_ms_other
     security_opt:
       - no-new-privileges:true

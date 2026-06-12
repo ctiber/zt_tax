@@ -36,12 +36,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOY_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Defaults ───────────────────────────────────────────────
-VARIANTS="${VARIANTS:-1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16}"
-PATTERNS="${PATTERNS:-http grpc websocket queue topic}"
+VARIANTS="${VARIANTS:-1 2 3 4 5 6 7}"
+PATTERNS="${PATTERNS:-http queue}"
 RAMP_UP=60
 SUSTAINED=300
 RAMP_DOWN=60
-TARGET_RPS=5.0
+TARGET_RPS=30.0
 BASE_URL="http://localhost:5001"
 PROM_URL="http://localhost:9090"
 JAEGER_URL="http://localhost:16686"
@@ -117,11 +117,11 @@ for VARIANT in $VARIANTS; do
       }
 
     # ── 2. Wait for gateway to be healthy ──────────────────
-    # Uses gateway-local /health endpoint (no microservice proxy needed).
-    # 80 attempts × 3 s = 240 s covers Docker build + Vault init on first run.
-    echo "  ⏳ Waiting for gateway /health (up to 240 s)..."
+    # SoY gateway has no /health endpoint; any HTTP response means it is up.
+    # 80 attempts × 3 s = 240 s covers image pull + Vault init on first run.
+    echo "  ⏳ Waiting for gateway to accept connections (up to 240 s)..."
     for attempt in $(seq 1 80); do
-      if curl -sf "${BASE_URL}/health" > /dev/null 2>&1; then
+      if curl -s --max-time 3 "${BASE_URL}/" -o /dev/null 2>&1; then
         echo "  ✓ Gateway ready (attempt ${attempt}, $((attempt * 3)) s)"
         break
       fi

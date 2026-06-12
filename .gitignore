@@ -11,6 +11,9 @@ at_zt_tax_repo.txt
 # ── Online Boutique source (cloned by ob-zt/setup.sh) ────────────
 ob-zt/online-boutique/
 
+# ── SoY postgres data volume ─────────────────────────────────────
+soy/soy-db/v5-soy-db/
+
 # ── Experiment results ────────────────────────────────────────────
 **/results/experiments/
 **/results/experiments_r*/

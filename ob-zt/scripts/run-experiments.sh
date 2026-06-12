@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-RPS="${1:-5}"
+RPS="${1:-30}"
 RAMP="${2:-60}"
 DURATION="${3:-300}"
 RESULTS_DIR="results/experiments"

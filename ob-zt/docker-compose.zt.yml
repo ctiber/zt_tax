@@ -208,12 +208,29 @@ services:
       - default
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: gcr.io/cadvisor/cadvisor:latest
+    privileged: true
+    command:
+      - --containerd=""
+      - --docker_only
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys:/sys:ro
-      - /var/snap/docker/common/var-lib-docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    profiles:
+      - monitoring
+    networks:
+      - default
+
+  # ── Docker-stats Prometheus exporter ────────────────────────────────────
+  # Uses Docker socket to collect per-container CPU/memory without containerd.
+  docker-stats-exporter:
+    build:
+      context: ./monitoring
+      dockerfile: Dockerfile.stats-exporter
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     profiles:
       - monitoring
     networks:
