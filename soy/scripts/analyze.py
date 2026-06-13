@@ -373,22 +373,22 @@ def aggregate_runs_by_key(runs: list) -> list:
             for sk in all_span_keys:
                 span_vals = [r['spans'].get(sk, {}) for r in group]
                 merged_spans[sk] = {
-                    'mean_ms':  _mean_or_nan([s.get('mean_ms')  for s in span_vals]),
-                    'p99_ms':   _mean_or_nan([s.get('p99_ms')   for s in span_vals]),
-                    'count':    sum(s.get('count', 0)            for s in span_vals),
+                    'p50':   _mean_or_nan([s.get('p50')   for s in span_vals]),
+                    'p75':   _mean_or_nan([s.get('p75')   for s in span_vals]),
+                    'p95':   _mean_or_nan([s.get('p95')   for s in span_vals]),
+                    'p99':   _mean_or_nan([s.get('p99')   for s in span_vals]),
+                    'mean':  _mean_or_nan([s.get('mean')  for s in span_vals]),
+                    'count': sum(s.get('count', 0)        for s in span_vals),
                 }
             base['spans'] = merged_spans
 
-        # Resources: mean across runs
+        # Resources: mean across runs (flat {key: float} structure)
         if all('resources' in r for r in group):
-            all_containers = set(c for r in group for c in r['resources'])
+            all_keys = set(k for r in group for k in r['resources'])
             merged_res = {}
-            for c in all_containers:
-                res_vals = [r['resources'].get(c, {}) for r in group]
-                merged_res[c] = {
-                    'cpu_pct': _mean_or_nan([s.get('cpu_pct') for s in res_vals]),
-                    'mem_mb':  _mean_or_nan([s.get('mem_mb')  for s in res_vals]),
-                }
+            for k in all_keys:
+                vals = [r['resources'].get(k, float('nan')) for r in group]
+                merged_res[k] = _mean_or_nan(vals)
             base['resources'] = merged_res
 
         aggregated.append(base)
@@ -886,9 +886,14 @@ def main():
 
     # ── Load all runs ──────────────────────────────────────────
     print(f"\nLoading runs from {indir} ...")
+    # Only load directories with explicit _runN suffix when such dirs exist,
+    # to avoid mixing old single-run dirs with new multi-run dirs.
+    all_dirs = [d for d in sorted(indir.iterdir()) if d.is_dir()]
+    has_run_suffix = any(re.search(r'_run\d+$', d.name) for d in all_dirs)
     runs = []
-    for run_dir in sorted(indir.iterdir()):
-        if not run_dir.is_dir():
+    for run_dir in all_dirs:
+        if has_run_suffix and not re.search(r'_run\d+$', run_dir.name):
+            print(f"  skip    {run_dir.name}  (no _runN suffix — superseded by multi-run dirs)")
             continue
         r = load_run(run_dir)
         if r is None:
