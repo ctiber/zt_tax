@@ -14,8 +14,14 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter:9100']
 
-  # Risk Analysis service – custom metrics
+  # SoY ZT Gateway – RA call histogram
+  - job_name: soy-gateway
+    metrics_path: /zt/metrics
+    static_configs:
+      - targets: ['gateway:8080']
+
+  # Risk Analysis service – RA duration histogram
   - job_name: risk-analysis
-    metrics_path: /health
+    metrics_path: /metrics
     static_configs:
       - targets: ['risk-analysis:9000']

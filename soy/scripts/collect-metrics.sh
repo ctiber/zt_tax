@@ -54,6 +54,19 @@ prom_range() {
     || echo "[collect] ⚠  prometheus/${file} unavailable"
 }
 
+# Instant query at T_END with increase() over the full test window.
+# Used for histogram aggregates (sum/count/buckets) where we want totals.
+prom_instant() {
+  local query="$1" file="$2"
+  curl -sf --max-time 30 \
+    "${PROM_URL}/api/v1/query" \
+    --data-urlencode "query=${query}" \
+    --data-urlencode "time=${T_END}" \
+    -o "${RUN_DIR}/${file}" 2>/dev/null \
+    && echo "[collect] ✓ prometheus/${file}" \
+    || echo "[collect] ⚠  prometheus/${file} unavailable"
+}
+
 # CPU usage per SoY container (% of one core)
 prom_range \
   'rate(container_cpu_usage_seconds_total{name=~"soy_.*"}[30s]) * 100' \
@@ -73,6 +86,21 @@ prom_range \
 prom_range \
   'rate(container_network_transmit_bytes_total{name=~"soy_.*"}[30s])' \
   "prom_net_tx.json"
+
+# RA service duration histogram (for E[S] and C²_s)
+# Only populated in variants where ZT_RA=true (v5, v6, v7).
+WINDOW=$(( (T_END - T_START) / 60 + 1 ))
+prom_instant \
+  "sum(increase(zt_ra_duration_seconds_sum[${WINDOW}m]))" \
+  "ra_duration_sum.json"
+
+prom_instant \
+  "sum(increase(zt_ra_duration_seconds_count[${WINDOW}m]))" \
+  "ra_duration_count.json"
+
+prom_instant \
+  "sum by (le) (increase(zt_ra_duration_seconds_bucket[${WINDOW}m]))" \
+  "ra_duration_buckets.json"
 
 # ─────────────────────────────────────────────────────────────────
 # JAEGER  – one file per ZT operation of interest

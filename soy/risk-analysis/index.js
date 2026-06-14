@@ -19,6 +19,14 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
+const promClient = require('prom-client');
+promClient.collectDefaultMetrics();
+const raDurationHistogram = new promClient.Histogram({
+  name: 'zt_ra_duration_seconds',
+  help: 'Risk Analysis /analyze call duration in seconds',
+  buckets: [0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5],
+});
+
 const PORT              = parseInt(process.env.PORT              || '9000', 10);
 const WINDOW_MS         = parseInt(process.env.ALERT_WINDOW_MS  || '60000', 10);  // 1 min
 const LATERAL_THRESHOLD = parseInt(process.env.LATERAL_MOVE_THRESHOLD || '10', 10); // distinct routes/min
@@ -108,13 +116,20 @@ const block  = (type, reason) => {
 
 // ─── Routes ────────────────────────────────────────────────
 app.post('/analyze', (req, res) => {
+  const end = raDurationHistogram.startTimer();
   try {
     const result = analyze(req.body);
     res.json(result);
   } catch (e) {
-    // Fail-open: if RA crashes, don't block traffic
     res.json({ block: false });
+  } finally {
+    end();
   }
+});
+
+app.get('/metrics', async (_req, res) => {
+  res.set('Content-Type', promClient.register.contentType);
+  res.end(await promClient.register.metrics());
 });
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', users: userState.size }));

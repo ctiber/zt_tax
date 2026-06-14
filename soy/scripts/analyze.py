@@ -202,6 +202,72 @@ def parse_prometheus(json_path: 'Path', container_filter=None) -> dict:
     return result
 
 
+def parse_prom_scalar(json_path):
+    """Return a single float from a Prometheus instant query result."""
+    if not json_path.exists():
+        return None
+    try:
+        data = json.loads(json_path.read_text())
+    except Exception:
+        return None
+    if data.get('status') != 'success':
+        return None
+    try:
+        results = data['data']['result']
+        if results:
+            return float(results[0]['value'][1])
+    except (KeyError, IndexError, ValueError):
+        return None
+    return None
+
+
+def parse_histogram_buckets(json_path) -> list:
+    """Return list of (upper_bound, cumulative_count) from a histogram_bucket instant result."""
+    if not json_path.exists():
+        return []
+    try:
+        data = json.loads(json_path.read_text())
+    except Exception:
+        return []
+    if data.get('status') != 'success':
+        return []
+    buckets = []
+    for item in data['data']['result']:
+        le = item['metric'].get('le', '')
+        if le == '+Inf':
+            continue
+        try:
+            buckets.append((float(le), float(item['value'][1])))
+        except (ValueError, KeyError, IndexError):
+            pass
+    return sorted(buckets, key=lambda x: x[0])
+
+
+def compute_ra_stats(run_dir):
+    """Compute E[S] and C²_s from the RA duration Prometheus histogram."""
+    total_s = parse_prom_scalar(run_dir / 'ra_duration_sum.json')
+    total_n = parse_prom_scalar(run_dir / 'ra_duration_count.json')
+    buckets  = parse_histogram_buckets(run_dir / 'ra_duration_buckets.json')
+    if total_n is None or total_n < 1 or total_s is None:
+        return None
+    mean_s = total_s / total_n
+    e_s2 = 0.0
+    prev_count = 0.0
+    prev_bound = 0.0
+    for upper, cum_count in buckets:
+        freq = max(cum_count - prev_count, 0.0)
+        midpoint = (prev_bound + upper) / 2.0
+        e_s2 += freq * midpoint ** 2
+        prev_count = cum_count
+        prev_bound = upper
+    tail_freq = max(total_n - prev_count, 0.0)
+    e_s2 += tail_freq * prev_bound ** 2
+    e_s2 /= total_n
+    var_s = max(e_s2 - mean_s ** 2, 0.0)
+    c2s = var_s / (mean_s ** 2) if mean_s > 0 else 0.0
+    return {'mean_s': mean_s, 'var_s': var_s, 'c2s': c2s, 'count': total_n}
+
+
 def mean_or_nan(lst):
     return float(np.mean(lst)) if lst else float('nan')
 
@@ -313,8 +379,11 @@ def load_run(run_dir: Path) -> 'dict | None':
 
     decomp = {'s1': decomp_stats(svc_decomp_s1), 's2': decomp_stats(svc_decomp_s2)}
 
+    # ── RA service-time statistics (E[S], C²_s from Prometheus histogram) ──
+    ra_stats = compute_ra_stats(run_dir)
+
     return {**meta, 's1': s1, 's2': s2, 'spans': spans, 'resources': resources,
-            'decomp': decomp, '_run_label': run_dir.name}
+            'decomp': decomp, 'ra_stats': ra_stats, '_run_label': run_dir.name}
 
 
 # ─────────────────────────────────────────────────────────────────

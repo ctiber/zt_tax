@@ -73,7 +73,8 @@ services:
   # API GATEWAY
   # ─────────────────────────────────────────────────────────
   gateway:
-    image: icws24submission/gateway_icws24:latest
+    build:
+      context: ./gateway
     container_name: soy_gateway
     security_opt:
       - no-new-privileges:true
@@ -90,8 +91,8 @@ services:
       - ${ZT_VARIANT_ENV:-variants/v1-baseline.env}
     environment:
       - OTEL_SERVICE_NAME=soy-gateway
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
-      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_ENABLED=true
     volumes:
       - ./certs:/app/certs:ro
       - ./proto:/app/proto:ro
@@ -113,8 +114,8 @@ services:
     environment:
       - SERVICE_NAME=ms-exercise
       - OTEL_SERVICE_NAME=soy-ms-exercise
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
-      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_ENABLED=true
     volumes:
       - ./certs:/app/certs:ro
       - ./proto:/app/proto:ro
@@ -133,8 +134,8 @@ services:
     environment:
       - SERVICE_NAME=ms-other
       - OTEL_SERVICE_NAME=soy-ms-other
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
-      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_ENABLED=true
     volumes:
       - ./certs:/app/certs:ro
       - ./proto:/app/proto:ro
@@ -201,10 +202,13 @@ services:
       # (login, session, exercises-list, exercise, statement, productions, submit, logout).
       # Set to 15 so legitimate traffic is never blocked; attacks hop 20+ routes.
       - LATERAL_MOVE_THRESHOLD=15
-      - RATE_LIMIT_RPM=200
+      # Rate limit: load test reuses 30 student accounts across many concurrent VUs,
+      # so per-account RPM is high. Set ceiling far above benchmark traffic so the
+      # RA measures call-overhead without ever blocking legitimate requests.
+      - RATE_LIMIT_RPM=10000
       - OTEL_SERVICE_NAME=soy-risk-analysis
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
-      - OTEL_ENABLED=${OTEL_ENABLED:-false}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_ENABLED=true
     healthcheck:
       test: ["CMD", "node", "-e",
              "require('http').get('http://localhost:9000/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
