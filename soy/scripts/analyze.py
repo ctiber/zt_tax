@@ -243,11 +243,8 @@ def parse_histogram_buckets(json_path) -> list:
     return sorted(buckets, key=lambda x: x[0])
 
 
-def compute_ra_stats(run_dir):
-    """Compute E[S] and C²_s from the RA duration Prometheus histogram."""
-    total_s = parse_prom_scalar(run_dir / 'ra_duration_sum.json')
-    total_n = parse_prom_scalar(run_dir / 'ra_duration_count.json')
-    buckets  = parse_histogram_buckets(run_dir / 'ra_duration_buckets.json')
+def _histogram_stats(total_s, total_n, buckets):
+    """Shared math for E[S], Var[S], C²s from a Prometheus histogram."""
     if total_n is None or total_n < 1 or total_s is None:
         return None
     mean_s = total_s / total_n
@@ -266,6 +263,28 @@ def compute_ra_stats(run_dir):
     var_s = max(e_s2 - mean_s ** 2, 0.0)
     c2s = var_s / (mean_s ** 2) if mean_s > 0 else 0.0
     return {'mean_s': mean_s, 'var_s': var_s, 'c2s': c2s, 'count': total_n}
+
+
+def compute_ra_stats(run_dir):
+    """E[S] and C²_s from the RA service's own internal timer (zt_ra_duration_seconds)."""
+    return _histogram_stats(
+        parse_prom_scalar(run_dir / 'ra_duration_sum.json'),
+        parse_prom_scalar(run_dir / 'ra_duration_count.json'),
+        parse_histogram_buckets(run_dir / 'ra_duration_buckets.json'),
+    )
+
+
+def compute_ra_gw_stats(run_dir):
+    """E[S] and C²_s from the gateway's RA round-trip timer (zt_ra_call_duration_seconds).
+
+    Populated only when ra_gw_duration_*.json files exist (sweeps with fixed
+    instrumentation).  Returns None for older runs.
+    """
+    return _histogram_stats(
+        parse_prom_scalar(run_dir / 'ra_gw_duration_sum.json'),
+        parse_prom_scalar(run_dir / 'ra_gw_duration_count.json'),
+        parse_histogram_buckets(run_dir / 'ra_gw_duration_buckets.json'),
+    )
 
 
 def mean_or_nan(lst):
@@ -380,10 +399,12 @@ def load_run(run_dir: Path) -> 'dict | None':
     decomp = {'s1': decomp_stats(svc_decomp_s1), 's2': decomp_stats(svc_decomp_s2)}
 
     # ── RA service-time statistics (E[S], C²_s from Prometheus histogram) ──
-    ra_stats = compute_ra_stats(run_dir)
+    ra_stats    = compute_ra_stats(run_dir)
+    ra_gw_stats = compute_ra_gw_stats(run_dir)  # gateway round-trip; None for old runs
 
     return {**meta, 's1': s1, 's2': s2, 'spans': spans, 'resources': resources,
-            'decomp': decomp, 'ra_stats': ra_stats, '_run_label': run_dir.name}
+            'decomp': decomp, 'ra_stats': ra_stats, 'ra_gw_stats': ra_gw_stats,
+            '_run_label': run_dir.name}
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -519,6 +540,8 @@ def write_kappa_table(runs: list, out_path: Path):
     """LaTeX table: κ = ΔPxx / ΔP50 for RA variants, HTTP.
     Each variant is compared against the v1 baseline at the SAME RPS level.
     When multiple RPS levels exist a RPS column is added to show load-amplification.
+    An extra column shows the span-based κ_RA = P99/P50 of the isolated RA call
+    (from the zt.risk_analysis Jaeger span), free of DB latency contamination.
     """
     http_runs = [r for r in runs if r['pattern'] == 'http']
     rps_values = sorted({r.get('target_rps', 5.0) for r in http_runs})
@@ -537,7 +560,16 @@ def write_kappa_table(runs: list, out_path: Path):
             return r'\textemdash'
         return fmt(delta_pxx / delta_p50, 2)
 
-    col_spec  = r'\begin{tabular}{llrrrrrrrrrr}' if multi_rps else r'\begin{tabular}{lrrrrrrrrrr}'
+    def kappa_ra_span(r):
+        """κ_RA from the isolated zt.risk_analysis span (P99/P50)."""
+        ra = r.get('spans', {}).get('risk_analysis', {})
+        p50 = ra.get('p50', float('nan'))
+        p99 = ra.get('p99', float('nan'))
+        if math.isnan(p50) or p50 < 0.01 or ra.get('count', 0) < 10:
+            return r'\textemdash'
+        return fmt(p99 / p50, 2)
+
+    col_spec  = r'\begin{tabular}{llrrrrrrrrrrr}' if multi_rps else r'\begin{tabular}{lrrrrrrrrrrr}'
     rps_hdr   = r' RPS &' if multi_rps else ''
     cmidr_s1  = r'\cmidrule(lr){3-7}' if multi_rps else r'\cmidrule(lr){2-6}'
     cmidr_s2  = r'\cmidrule(lr){8-12}' if multi_rps else r'\cmidrule(lr){7-11}'
@@ -547,9 +579,10 @@ def write_kappa_table(runs: list, out_path: Path):
         r'\toprule',
         rf'Variant &{rps_hdr}'
         r' \multicolumn{5}{c}{S1 – $\kappa_{\text{S1}}$ at percentile} &'
-        r' \multicolumn{5}{c}{S2 – $\kappa_{\text{S2}}$ at percentile} \\',
+        r' \multicolumn{5}{c}{S2 – $\kappa_{\text{S2}}$ at percentile} &'
+        r' $\kappa_{\text{RA}}$ \\',
         f'{cmidr_s1}{cmidr_s2}',
-        rf' &{rps_hdr} P75 & P90 & P95 & P99 & P99.9 & P75 & P90 & P95 & P99 & P99.9 \\',
+        rf' &{rps_hdr} P75 & P90 & P95 & P99 & P99.9 & P75 & P90 & P95 & P99 & P99.9 & (span) \\',
         r'\midrule',
     ]
 
@@ -581,7 +614,8 @@ def write_kappa_table(runs: list, out_path: Path):
                 f" {kappa(s2['p90']  - b2['p90'],  dp50_s2)} &"
                 f" {kappa(s2['p95']  - b2['p95'],  dp50_s2)} &"
                 f" {kappa(s2['p99']  - b2['p99'],  dp50_s2)} &"
-                f" {kappa(s2['p999'] - b2['p999'], dp50_s2)} \\\\")
+                f" {kappa(s2['p999'] - b2['p999'], dp50_s2)} &"
+                f" {kappa_ra_span(r)} \\\\")
         lines.append(line)
     lines += [r'\bottomrule', r'\end{tabular}']
     out_path.write_text('\n'.join(lines))

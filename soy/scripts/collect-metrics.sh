@@ -102,6 +102,21 @@ prom_instant \
   "sum by (le) (increase(zt_ra_duration_seconds_bucket[${WINDOW}m]))" \
   "ra_duration_buckets.json"
 
+# Gateway RA round-trip histogram (zt_ra_call_duration_seconds from gateway)
+# This is the full network+processing round-trip as seen by the gateway, used
+# for computing isolated κ_RA without PostgreSQL latency contamination.
+prom_instant \
+  "sum(increase(zt_ra_call_duration_seconds_sum[${WINDOW}m]))" \
+  "ra_gw_duration_sum.json"
+
+prom_instant \
+  "sum(increase(zt_ra_call_duration_seconds_count[${WINDOW}m]))" \
+  "ra_gw_duration_count.json"
+
+prom_instant \
+  "sum by (le) (increase(zt_ra_call_duration_seconds_bucket[${WINDOW}m]))" \
+  "ra_gw_duration_buckets.json"
+
 # ─────────────────────────────────────────────────────────────────
 # JAEGER  – one file per ZT operation of interest
 # ─────────────────────────────────────────────────────────────────
