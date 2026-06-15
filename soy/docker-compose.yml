@@ -41,7 +41,8 @@ services:
   # FRONTEND
   # ─────────────────────────────────────────────────────────
   front:
-    image: icws24submission/front_v5:latest
+    build:
+      context: ./FrontReact
     container_name: soy_front
     profiles: [front]
     security_opt:
@@ -57,7 +58,8 @@ services:
   # DATABASE
   # ─────────────────────────────────────────────────────────
   postgres:
-    image: icws24submission/postgres_icws24:latest
+    build:
+      context: ./soy-db
     container_name: soy_postgres
     user: "0"
     shm_size: 1g
@@ -103,7 +105,6 @@ services:
   ms-exercise:
     build:
       context: ./exercise-http
-    image: icws24submission/exercise_icws24:latest
     container_name: soy_ms_exercise
     security_opt:
       - no-new-privileges:true
@@ -125,7 +126,6 @@ services:
   ms-other:
     build:
       context: ./other-http
-    image: icws24submission/other_icws24:latest
     container_name: soy_ms_other
     security_opt:
       - no-new-privileges:true

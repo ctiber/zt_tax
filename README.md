@@ -52,21 +52,39 @@ All inter-service communication is routed through the API gateway.
 
 ### Quick start
 
-Pre-built Docker images are available on Docker Hub — no local build required:
+All services build from source — no Docker Hub images required.
+
+**First-time setup** (one-off, ~3 min):
 
 ```bash
 cd soy
-bash pull_from_dockerHub.sh   # pulls icws24submission/* images
+
+# 1. Build all images
+docker compose build
+
+# 2. Start the stack (v1 baseline to initialise the DB)
+bash scripts/run-variant.sh 1 http
+
+# 3. Populate test accounts and write load-tests/test-data.env
+bash scripts/setup-test-data.sh
+
+# 4. Stop the stack
+bash scripts/stop-variant.sh
 ```
 
-Run a single variant:
+> The DB schema and reference data are loaded automatically on the first start
+> via `soy-db/init.sql` (PostgreSQL 17).  The `setup-test-data.sh` step creates
+> 30 student accounts and subscribes them to the benchmark session; it only
+> needs to be run once — the data persists in `soy/soy-db/v5-soy-db/`.
+
+**Run a single variant:**
 
 ```bash
 # Variant 5 (RA only), HTTP pattern, 30 RPS, 60 s ramp, 300 s sustained
 bash scripts/run-variant.sh 5 http
 ```
 
-Run the full 7-variant × 2-pattern sweep:
+**Run the full 7-variant × 2-pattern sweep:**
 
 ```bash
 bash scripts/run-experiments.sh 30 60 300
@@ -74,7 +92,7 @@ bash scripts/run-experiments.sh 30 60 300
 # 7 variants × 2 patterns = 14 runs (~3 hours)
 ```
 
-Analyse results:
+**Analyse results:**
 
 ```bash
 python3 scripts/analyze.py results/experiments/
@@ -111,12 +129,15 @@ Measured latency (P50 / P99, ms) and error rate for the HTTP pattern:
 | v6 All-GW | 3868 | 28154 | — | — | 24.0% | ⚠ broken (includes mTLS) |
 | v7 All+RA-MS | 3890 | 26696 | — | — | 24.0% | ⚠ broken (includes mTLS) |
 
-> **Known issue — mTLS in SoY:** variants v4, v6, and v7 currently produce
-> ~19–25% request errors and multi-second latencies, indicating a TLS
-> handshake or certificate misconfiguration between the gateway and the nginx
-> sidecar proxies.  Variants v1–v3 and v5 are unaffected and yield clean
-> results.  The RA tail-amplification finding ($\kappa_{\text{P99}} \approx 9$
-> at 30 RPS) is based on v5 alone and does not depend on mTLS.
+> **mTLS note:** the ~19–25% error rate previously observed for v4/v6/v7 was
+> caused by three bugs now fixed in this source tree: (1) an undefined `server`
+> variable in `other-http/index.js` that caused the domain error handler to
+> swallow errors and never send a response, leaving nginx to hold each socket
+> for 60 s; (2) `connect_to_db()` not awaiting `client.connect()`, turning
+> PostgreSQL errors into silent unhandled rejections that triggered the broken
+> handler; (3) missing `proxy_http_version 1.1` / `proxy_set_header Connection ""`
+> in the nginx sidecar configs.  The results table above reflects the
+> pre-fix run; a corrected run is needed to update v4/v6/v7 numbers.
 
 Resource usage (HTTP, 30 RPS, average over sustained load window):
 
