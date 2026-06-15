@@ -1,0 +1,7 @@
+.feedbacks{
+  display:flex;
+}
+
+.feedbacks fieldset{
+  transform: scale(0.75);
+}

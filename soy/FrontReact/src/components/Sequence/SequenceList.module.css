@@ -1,0 +1,20 @@
+.header{
+  display:flex;
+  margin-bottom: 2%;
+}
+.header > *:not(:last-child) {
+  width:50%;
+}
+
+.header > *:first-child{
+  display: flex;
+}
+
+.header > *:first-child > *{
+  width: 100%;
+  margin-right: 4%;
+}
+
+.header > *:last-child{
+  margin-left: auto;
+}

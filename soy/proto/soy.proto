@@ -1,0 +1,26 @@
+syntax = "proto3";
+package soy;
+
+// Generic HTTP-over-gRPC forwarding.
+// This design tunnels any HTTP request through gRPC, so existing Express routes
+// in the microservices require zero changes. The overhead measured is pure
+// gRPC framing + Protobuf serialization + HTTP/2 multiplexing.
+
+service HttpForward {
+  // Unary RPC for standard request/response (all REST calls)
+  rpc Forward(HttpRequest) returns (HttpResponse);
+}
+
+message HttpRequest {
+  string method  = 1;  // GET, POST, PUT, DELETE …
+  string path    = 2;  // /api/exercise-production/42
+  string query   = 3;  // foo=bar&baz=qux
+  map<string, string> headers = 4;
+  bytes  body    = 5;
+}
+
+message HttpResponse {
+  int32  status_code = 1;
+  map<string, string> headers = 2;
+  bytes  body        = 3;
+}

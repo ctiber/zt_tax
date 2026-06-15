@@ -1,0 +1,123 @@
+<h2>Aide pour les enseignants</h2>
+
+<h4>Principe général de la plateforme</h4>
+<p>Cette plateforme d'exercices permet d'entrainer des étudiants à la pratique du shell sous système Unix. </p>
+
+<p>Pour qu'un étudiant ou un groupe d'étudiants puissent effectuer des exercices, ceux-ci doivent être inscrits à une <b>session</b>.</p>
+
+<p>Une <b>session</b> est définie par une <b>séquence</b> d'exercices, une date de début et de fin de session et un ou deux paramètres indiquant :
+    <ul>
+        <li>le seuil nécessaire pour passer d'un exercice à un autre (le positionner à 0 pour un accès libre d'un exercice à l'autre).</li>
+        <li>si la session est <i>rythmée</i>, c'est à dire si un nouvel exercice est disponible tous les jours ou pas.</li>
+    </ul>
+</p> 
+
+<p>Une <b>séquence</b> d'exercices est une suite ordonnée d'exercices piochés dans les exercices disponibles sur la plateforme.
+Chaque séquence d'exercice est associée à un <b>profil</b> (une finalité ayant une description). 
+Pour l'instant un profil est associé à un métier dans un secteur (objectif d'insertion visé par les étudiants) 
+et à un niveau au sein de ce métier (<i>débutant</i>, ..., <i>expert</i>).
+</p>
+
+<h4> Les exercices</h4>
+
+<p>Pour bien comprendre il est conseillé de vous inscrire à une <i>session</i> existante et d'essayer un de ses exercices. 
+Cela vous montrera comment se résoud un exercice sur la plateforme et comment un étudiant interagit avec lui.</p>
+
+<p>Tous les exercices de la plateforme ont le même principe de fonctionnement :
+    <ol>
+      <li>l'étudiant(e) reçoit un énoncé au format html (contenant des instructions et des questions) 
+          <b>et</b> une archive <i>question</i> à télécharger</li>
+      <li>il/elle télécharge le fichier archive et le dépose sur un système Unix auquel il a accès [<a href='#acces_a_un_Unix'>1</a>]</li> 
+      <li>il/elle extrait le contenu de l'archive et travaille dessus suivant les instructions de l'énoncé</li>
+      <li>il/elle crée une archive <i>réponse</i> de la hiérachie sur laquelle il/elle a travaillé.</li>
+      <li>il/elle soumet son archive réponse sur la plateforme ShellOnYou.</li> 
+      <li>la plateforme analyse et lui indique ce qui va et ce qui ne va pas dans son archive 
+        en regard de ce qui est attendu par l'exercice et lui donne aussi un pourcentage global 
+        de réussite</li>          
+    </ol>
+</p>
+<p>L'étudiant(e) peut recommencer autant de fois qu'il le souhaite (pendant la période sur laquelle la session est ouverte et l'exercice disponible).</p>
+
+
+<h4>Actions possibles pour un enseignant</h4>
+
+<p style="color:#FF0000";>Attention, les actions que vous faîtes peuvent avoir 
+    de lourdes conséquences pour les autres enseignants, la plateforme ayant été pensée 
+    au départ pour de petites équipes enseignantes. Réflechissez bien à chaque 
+    validation/suppression/édition que vous faîtes. Par exemple, d'autres enseignants
+    peuvent avoir décidé d'utiliser un de vos exercices dans une de leurs sessions. 
+    Les modifications que vous apportez à votre exercice affecteront tous les prochains étudiants
+    accédant à l'exercice. Pour l'instant les <i>séquences</i> d'exercices sont elles aussi 
+    communes à tous les enseignants, donc changer l'ordre des exercices dans une séquence peut
+    affecter des sessions gérées par d'autres enseignants. Pour clarifier la situation, nous 
+    encourageons les enseignants à inclure par exemple leurs initiales dans le nom ou la description
+    des séquences qu'ils utilisent.</p>
+
+<p><i><small>En cours: nous travaillons sur une version de ShellOnYou avec une logique différente :
+    chaque enseignant référençant l'exercice d'un autre enseignant obtiendra un clone de cet
+    exercice, qu'il pourra faire évoluer selon ses besoins. La même idée permettra à chaque
+    enseignant de disposer de ses séquences d'exercices à utiliser dans ses sessions.</small></i>
+    </p>
+
+<p>En tant qu'enseignant vous avez la possibilité de 
+    <ul>
+        <li>créer/modifier des exercices et de supprimer des exercices que vous avez créés</li>
+        <li>créer/modifier/supprimer des séquences d'exercices</li> 
+        <li>de créer des sessions et modifier/supprimer les sessions que <i>vous</i> avez créées.</li> 
+        <li>de voir les résultats des étudiants à vos sessions</li>
+    </ul>
+</p>
+
+
+<h4>Proposer un nouvel exercice</h4>
+<p> Chaque exercice est constitué de :</p>
+<ul>
+    <li>Un énoncé témoin (<i>template)</i> au format <code>HTML</code></li>
+    <li>une archive témoin au format <code>.tar.gz</code></li>
+    <li>un script <code>python</code> de génération d'un énoncé dédié à un étudiant [<a href='#python'>2</a>]</li>
+    <li>un script <code>python</code> permettant d'analyse une réponse d'étudiant [<a href='#python'>2</a>]</li>
+</ul>
+
+
+<p>Le script de création d'énoncé pour un étudiant peut simplement fournir une copie inchangée de l'énoncé témoin et de l'archive témoin. 
+    Mais il a aussi la possibilité de fabriquer un énoncé +  une archive spécifiques à chaque étudiant (avec des éléments aléatoirement changés) 
+    de façon à ce que tous les étudiants ne disposent pas exactement du même énoncé.</p>
+
+<p>Il est recommandé que tout le contenu de l'arcihve témoin soit inclus dans un même dossier 
+   afin de ne pas disperser ces éléments sur le système de fichier où l'étudiant va ouvrir l'archive </p>
+
+<p>Concernant les questions/réponses de l'exercice, il est possible de demander à l'étudiant 
+    d'écrire ses réponses dans un fichier inclus dans l'archive [<a href='#reponses.txt'>3</a>], mais certaines
+    questions peuvent juste consister à ce qu'il modifie l'archive d'une certaine façon.</p>
+ 
+<p> Quand un étudiant soumet une réponse à un exercice, le script <code>python</code> d'analyse de l'exercice est lancé par la plateforme 
+    et reçoit en paramètres l'énoncé <code>HTML</code> (qui peut être spécifique à l'étudiant), l'archive qui lui a été communiquée pour réaliser l'exercice
+    (qui elle aussi peut lui être spécifique) et l'archive réponse chargée par l'étudiant sur la plateforme.</p>
+
+<p>Une bibliothèque python est disponible pour les enseignants qui inclut par exemple des opérations courantes 
+    de manipulations d'archive effectuées durant la génération d'un énoncé et l'analyse d'une archive réponse.</p>
+
+<p>Un dépôt commun sur un <code>gitlab</code> recense les exercices actuels et les éléments associés (archives témoins, 
+    scripts python). Pour demander à y avoir accès, écrivez simplement à 
+    <code>shellonyou</code> AT <code>polytech-reseau</code> DOT <code>org</code>.</p>
+
+<!-- --------------------------------------------------------------------------------------------------------------------------- -->
+<hr/>
+<small>
+<a id="acces_a_un_Unix">
+    <p>[1] Ce peut être sur sa machine, ce qui est immédiat si l'étudiant(e) est sous Linux ou FreeBSD,MacOS) 
+        mais aussi assez facile s'il/elle est sous Windows qui inclut maintenant un sous-système Unix et propose à l'utilisateur 
+d'installer une version de la distribution <i>Ubuntu</i> accessible directement depuis Windows. 
+Enfin, plusieurs sites internet fournissent un accès gratuit à un système Unix en ligne (réel ou émulé) et permettent d'y charger des fichiers 
+et d'en télécharger un contenu édité/fabriqué sur ce système, ce qui est nécessaire pour réaliser les exercices 
+(<a href="https://repl.it" target="_blank">repl.it</a>,  <a href="https://cocalc.com/" target="_blank">CoCalc</a>, ...).
+</p></a>
+
+<a id="python">
+    <p>[2] écrit en Python v2 (nous prévoyons de passer à Python v3 suivant la demande).
+    </p></a>
+
+<a id="reponses.txt">
+    <p>[3] typiquement dans un fichier <code>reponses.txt</code> au texte préformatté et situé à la racine de l'arborescence contenue dans l'archive.</p></a>
+
+</small>

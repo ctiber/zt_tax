@@ -1,0 +1,11 @@
+code{
+  color:pink;
+}
+
+.detailsPaper div, .detailsPaper p, .detailsPaper .MuiTypography-root, .detailsPaper h2, .detailsPaper ol, .detailsPaper input{
+  color:white;
+}
+
+.detailsPaper{
+  text-align: left;
+}

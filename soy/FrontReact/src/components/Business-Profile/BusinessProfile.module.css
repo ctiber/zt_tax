@@ -1,0 +1,88 @@
+
+
+.businessProfileList {
+  display: flex;
+  justify-content: space-evenly;
+  flex-wrap: wrap;
+}
+
+.profiles__littleHeader {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin: 0px 20px 0px 20px;
+  color: var(--darkTheme-secondary-text);
+}
+
+
+.dialog__content label {
+  margin-top: 5px;
+}
+
+.dialog__content input {
+  margin-top: 5px;
+}
+
+.content{
+  margin-top:5%;
+}
+
+.header{
+  display: flex;
+  margin-bottom: 1%;
+}
+
+.header > *:last-child:not(:first-child){
+  height: 100%;
+}
+
+
+/* ---------------- Business Profile Item -----------------*/
+.card {
+  width: 300px;
+  margin: 20px;
+  text-align: left;
+  background-color: #1c1c1c !important;
+  color: var(--darkTheme-primary-text) !important;
+  border: solid 1px var(--darkTheme-border-secondary) !important;
+  border-bottom: none !important;
+  height: 100%;
+}
+
+.card__title {
+  font-size: x-large;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.card__content {
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: column;
+  width: 100%;
+}
+
+.card__actions {
+  height: 44px;
+}
+
+.card__expanded {
+  transform: rotate(180deg);
+  margin-left: auto !important;
+}
+
+.card__expand {
+  margin-left: auto !important;
+}
+
+.card__collapse {
+  /* Ne s'affiche pas exactement comme il faut */
+  background-color: #1c1c1c !important;
+  z-index: 1;
+}
+
+.card__item {
+  display: grid;
+  grid-template: 100% / 25% 75%;
+  margin-bottom: 4px;
+}

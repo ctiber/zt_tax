@@ -1,0 +1,59 @@
+.register__card {
+  display: flex;
+  justify-content: center;
+  height: 100%;
+}
+
+
+.register__form {
+  margin-top: 5%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  padding: 1%;
+  height: 100%;
+  background-color: var(--darkTheme-third);
+  width:30%;
+  border-radius: 2px;
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%)
+}
+
+.register__form > div{
+  margin-bottom: 1%;
+}
+
+
+.label,
+.input Label {
+  color: var(--darkTheme-secondary-text) !important;
+}
+
+.labelError {
+  color: red !important;
+}
+
+.buttonRegister {
+  margin-top: 3% !important;
+  background-color: rgb(0, 138, 41) !important;
+  color: var(--darkTheme-third-text);
+  font-weight: 700 !important;
+  margin-bottom: 2% !important;
+}
+
+.linkToLogin {
+  background-color: var(--darkTheme-primary) !important;
+}
+
+.buttonToLogin {
+  width: 100%;
+  border-radius: 4px;
+}
+
+.buttonToLogin span {
+  font-weight: 700 !important;
+  width: 100%;
+}
+
+span.bold{
+  font-weight: bold;
+}

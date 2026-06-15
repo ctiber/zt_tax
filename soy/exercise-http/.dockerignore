@@ -1,0 +1,6 @@
+# Things that need not / must not be sent to the Docker server when building the image
+# (worth reading article on why/how to customize this: https://codefresh.io/docker-tutorial/not-ignore-dockerignore-2/ )
+
+node_modules
+npm-debug.log
+.gitignore

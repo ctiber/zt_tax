@@ -74,7 +74,7 @@ services:
   # ─────────────────────────────────────────────────────────
   gateway:
     build:
-      context: ./gateway
+      context: ./gateway-http
     container_name: soy_gateway
     security_opt:
       - no-new-privileges:true
@@ -101,6 +101,8 @@ services:
   # MICROSERVICES
   # ─────────────────────────────────────────────────────────
   ms-exercise:
+    build:
+      context: ./exercise-http
     image: icws24submission/exercise_icws24:latest
     container_name: soy_ms_exercise
     security_opt:
@@ -121,6 +123,8 @@ services:
       - ./proto:/app/proto:ro
 
   ms-other:
+    build:
+      context: ./other-http
     image: icws24submission/other_icws24:latest
     container_name: soy_ms_other
     security_opt:

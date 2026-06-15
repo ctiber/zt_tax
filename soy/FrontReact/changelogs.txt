@@ -1,0 +1,4 @@
+Changes:
+ - fixed teachers not being able to create sessions and sequences not showing when creating/editing
+ - fixed student seeing the add session button
+ - fix: Missing 100% scores in chart

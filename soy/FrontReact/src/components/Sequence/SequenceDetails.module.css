@@ -1,0 +1,61 @@
+.header{
+  display: flex;
+  justify-content: space-between;
+}
+
+.mainGrid{
+  padding: 16px;
+  display: flex;
+}
+
+.mainGrid > div:last-child{
+  margin-left:2%
+}
+
+.sequenceExerciseListCard {
+  background-color: var(--darkTheme-third) !important;
+}
+
+.sequenceDetailsPrimaryButton:disabled {
+  color: grey !important;
+}
+
+.sequenceDetailsTableRow th,
+.sequenceDetailsTableRow td {
+  color: var(--darkTheme-primary-text) !important;
+}
+
+.InputMinRating {
+  color: var(--darkTheme-primary-text) !important;
+  border-color: var(--darkTheme-secondary) !important;
+}
+
+.profileListDisplay {
+  text-align: left;
+}
+
+.main__container {
+  display: grid;
+  grid-template: 250px auto / 50% 50%;
+}
+.container__available {
+  grid-area: 1 / 1 / 2 / 1;
+  margin: 5px;
+}
+
+.container__profile {
+  grid-area: 1 / 2;
+  margin: 5px;
+  background-color: var(--darkTheme-third) !important;
+}
+
+.container__chosen {
+  grid-area: 2 / 2;
+  margin: 5px;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

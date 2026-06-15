@@ -1,0 +1,80 @@
+/* @import url("https://fonts.googleapis.com/css2?family=Zen+Dots&display=swap"); */
+@import url("https://fonts.googleapis.com/css2?family=Roboto&display=swap");
+
+.App {
+  text-align: center;
+  /* font-family: "Zen Dots", cursive; */
+  font-family: "Roboto", sans-serif;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.MuiTableCell-root{
+  font-size:1rem !important;
+}
+
+main{
+  margin-bottom: 3%;
+}
+
+.Mui-required > .MuiInputLabel-asterisk{
+  color:red;
+}
+
+
+.bg_img{
+  background-image: url(./assets/images/logo-hacker.png);
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+main > div > .MuiPaper-root:not(.MuiAlert-root){
+  margin: 0% !important;
+  margin-top:1% !important;
+  padding: 2% !important;
+  background-color: var(--darkTheme-third) !important;
+}
+
+
+.MuiTableBody-root > tr.MuiTableRow-root:nth-child(even), .MuiTableHead-root>tr{
+  background-color: #222222 !important;
+}
+
+
+.row {
+  border-bottom: solid 1px var(--darkTheme-primary) !important;
+}
+
+.cell {
+  border-bottom: none !important;
+}
+
+.loading{
+  display: flex;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  height:100vh;
+  width:100vw;
+}
+
+.MuiFormHelperText-root{
+  color: #7E7E7E !important;
+}
+
+
+.title {
+  margin: 0;
+  font-weight: 500;
+  color: var(--darkTheme-secondary-text) !important;
+  text-align: left;
+  margin: 10px;
+}
+
+.MuiContainer-root{
+  margin-top:3%;
+}

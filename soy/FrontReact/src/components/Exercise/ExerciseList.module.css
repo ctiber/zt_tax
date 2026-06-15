@@ -1,0 +1,44 @@
+.exercise__littleHeader {
+  margin: 0px 20px 0px 20px;
+}
+
+.exercise__add_button {
+  margin-left: auto !important;
+}
+
+.title {
+  margin: 0;
+  font-weight: 500;
+  color: var(--darkTheme-secondary-text) !important;
+  text-align: left;
+  margin: 10px;
+}
+
+.table__container  >  :global(.MuiTableContainer-root > .MuiTable-root > .MuiTableBody-root > tr.MuiTableRow-root:nth-child(even)){
+  background-color: #202020 !important;
+}
+
+.table__container  >  :global(.MuiTableContainer-root > .MuiTable-root > .MuiTableBody-root > tr.row.MuiTableRow-root:nth-child(4n-1)){
+  background-color: #222222 !important;
+}
+
+.header{
+  display:flex;
+  margin-bottom: 2%;
+}
+.header > *:not(:last-child) {
+  width:50%;
+}
+
+.header > *:first-child{
+  display: flex;
+}
+
+.header > *:first-child > *:last-child{
+  width: 100%;
+  margin-left: 4%;
+}
+
+.header > *:last-child{
+  margin-left: auto;
+}

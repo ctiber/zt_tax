@@ -1,0 +1,10 @@
+.dialogContentFlexContainer {
+  display: flex;
+  direction: column;
+  justify-content: space-around;
+  flex-wrap: wrap;
+}
+
+.dialogContentFlexItem {
+  margin-top: 3% !important;
+}

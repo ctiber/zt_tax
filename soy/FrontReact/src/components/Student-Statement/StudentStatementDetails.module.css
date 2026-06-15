@@ -1,0 +1,19 @@
+.stmtPaper div, .stmtPaper p, .stmtPaper .MuiTypography-root, .stmtPaper h2, .stmtPaper ol, .stmtPaper input{
+  color:white;
+}
+
+.stmtPaper{
+  text-align: left;
+}
+
+.error{
+  font-weight: bold;
+  font-size:larger;
+  color:red !important;
+}
+
+.dateHeader{
+  width: 100%;
+  text-align: right;
+  color:rgb(5, 226, 5);
+}

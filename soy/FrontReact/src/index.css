@@ -1,0 +1,39 @@
+:root {
+  --darkTheme-primary: #303030;
+  --darkTheme-secondary: #252525;
+  --darkTheme-third: #252525;
+
+  --darkTheme-primary-text: #FFFFFF;
+  --darkTheme-secondary-text: #e0e0e0;
+  --darkTheme-third-text: var(--darkTheme-primary);
+
+  --darkTheme-icons-primary: #FFFFFF;
+  --darkTheme-icons-secondary: var(--darkTheme-third);
+
+  --darkTheme-border-primary: var(--darkTheme-third);
+  --darkTheme-border-secondary: var(--darkTheme-primary);
+
+  --darkTheme-navbar: var(--darkTheme-third);
+
+  --error-message: #c62828;
+}
+html {
+  height: 100%;
+}
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
+    "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--darkTheme-primary);
+  color: var(--darkTheme-primary-text);
+  height: 100%;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+}

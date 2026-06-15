@@ -1,0 +1,64 @@
+.login__card {
+  display: flex;
+  justify-content: center;
+  height: 100%;
+}
+
+.center{
+  display: flex !important;
+  justify-content: center;
+}
+
+.login__form {
+  margin-top: 5%;
+  display: flex;
+  flex-direction: column;
+  padding: 1%;
+  height: 100%;
+  background-color: var(--darkTheme-third);
+  width: 33%;
+  height: 100%;
+  border-radius: 2px;
+  box-shadow: 0px 2px 1px -1px rgb(0 0 0 / 20%), 0px 1px 1px 0px rgb(0 0 0 / 14%), 0px 1px 3px 0px rgb(0 0 0 / 12%)
+}
+
+.login__form > *{
+  margin-bottom:3% !important;
+}
+
+.MuiSvgIcon-root{
+  color:white;
+}
+
+
+.label,
+.input Label {
+  color: var(--darkTheme-secondary-text) !important;
+}
+
+.input input {
+  color: var(--darkTheme-primary-text) !important;
+}
+
+.button_login {
+  margin-top:4% !important;
+  background-color: rgb(0, 138, 41) !important;
+}
+
+.button_login > * {
+  color: white;
+}
+
+.link_to_register {
+  background-color: var(--darkTheme-primary) !important;
+} 
+
+.button_to_register {
+  width: 100%;
+}
+
+.button_to_register span {
+  font-weight: 700 !important;
+  width: 100%;
+  color: var(--darkTheme-primary-text) !important;
+}

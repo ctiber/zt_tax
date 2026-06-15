@@ -1,0 +1,38 @@
+
+.toxTinymce{
+  margin-top:2%;
+  margin-bottom: 2%;
+}
+
+.chips{
+  display: flex;
+  flex-wrap: wrap;
+}
+.chip{
+  margin: 2px !important;
+}
+
+.fileInputs{
+  margin:auto;
+  padding: 2%;
+  margin-left:8%;
+  width:100%;
+  justify-content: center;
+}
+
+.formContainer :global .MuiFormControl-root{
+  width:40% !important;
+  margin-left:1% !important;
+}
+
+
+.skillsSelector{
+  width:50%
+}
+
+.fileInputs > div{
+  margin-bottom: 1%;
+  width:50%;
+  display: flex;
+  justify-content: space-between;
+}

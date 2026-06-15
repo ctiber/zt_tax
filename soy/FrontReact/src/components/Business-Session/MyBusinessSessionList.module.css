@@ -1,0 +1,46 @@
+.header{
+  display:flex;
+}
+.header > * {
+  width:50%;
+}
+
+.header > *:first-child{
+  margin-top: 1%;
+  display: flex;
+}
+
+.header > *:first-child > *{
+  width: 100%;
+  margin-right: 4%;
+}
+
+.header > *:first-child > *:last-child{
+  margin-right: 0%;
+}
+
+.header > *:last-child{
+  justify-content: right;
+}
+
+
+.title{
+  display:flex;
+  align-items: center;
+}
+
+.title > *:first-child{
+  width:50%
+}
+
+.id{
+  margin-left:auto;
+  justify-content:center;
+  display:flex;
+  align-items:center;
+}
+
+.id > *:last-child{
+  margin-left: 4px;
+  display: flex;
+}
