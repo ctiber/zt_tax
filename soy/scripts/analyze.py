@@ -827,13 +827,19 @@ def write_summary_csv(runs: list, out_path: Path):
 # ─────────────────────────────────────────────────────────────────
 
 ZT_COLORS = {
-    'baseline':        '#6baed6',
-    'AC4A':            '#fd8d3c',
-    'SR':              '#74c476',
-    'MTLS':            '#9e9ac8',
-    'RA':              '#f768a1',
-    'AC4A+SR+MTLS+RA': '#d62728',
+    'baseline':             '#6baed6',
+    'AC4A':                 '#fd8d3c',
+    'SR':                   '#74c476',
+    'MTLS':                 '#9e9ac8',
+    'RA':                   '#f768a1',
+    'AC4A+SR+MTLS+RA':      '#d62728',
+    'AC4A+SR+MTLS+RA+RA-MS':'#8c564b',
 }
+
+VARIANT_ORDER = [
+    'baseline', 'AC4A', 'SR', 'MTLS', 'RA',
+    'AC4A+SR+MTLS+RA', 'AC4A+SR+MTLS+RA+RA-MS',
+]
 
 def variant_label(r: dict) -> str:
     flags = [f for f, k in [
@@ -888,7 +894,7 @@ def fig_latency_boxplot(runs: list, out_path: 'Path'):
         print(f"  ⚠  No duration data for box plot — skipping {out_path.name}")
         return
 
-    labels = sorted(g_s1.keys(), key=lambda x: (len(x), x))
+    labels = sorted(g_s1.keys(), key=lambda x: VARIANT_ORDER.index(x) if x in VARIANT_ORDER else 99)
     w = max(11, len(labels) * 1.8)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(w, 10), sharex=True)
 
