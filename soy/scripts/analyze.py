@@ -935,15 +935,15 @@ def fig_span_breakdown(runs: list, out_path: Path):
 
 def fig_pattern_comparison(runs: list, out_path: Path):
     """Grouped bar chart: P99 S1 latency for each communication pattern, one group per pattern."""
-    patterns = ['http', 'grpc', 'websocket', 'queue', 'topic']
-    # Only use v1 (baseline) and v16 (full ZT) to keep the chart readable
-    variants_of_interest = ['1', '16']
-    colors = {'1': '#6baed6', '16': '#d62728'}
-    labels_map = {'1': 'v1-baseline', '16': 'v16-all'}
+    patterns = ['http', 'queue']
+    # v1 = baseline, v6 = full gateway ZT (AC4A+SR+mTLS+RA)
+    variants_of_interest = ['1', '6']
+    colors = {'1': '#6baed6', '6': '#d62728'}
+    labels_map = {'1': 'v1-baseline', '6': 'v6-all-gw'}
 
     x = range(len(patterns))
     width = 0.35
-    fig, ax = plt.subplots(figsize=(9, 5))
+    fig, ax = plt.subplots(figsize=(7, 5))
 
     for i, vnum in enumerate(variants_of_interest):
         vals = []
@@ -955,9 +955,9 @@ def fig_pattern_comparison(runs: list, out_path: Path):
                label=labels_map[vnum], color=colors[vnum], alpha=0.8)
 
     ax.set_xticks(list(x))
-    ax.set_xticklabels([p.upper() for p in patterns])
+    ax.set_xticklabels(['HTTP', 'Queue (AMQP)'])
     ax.set_ylabel('P99 Latency S1 (ms)')
-    ax.set_title('P99 Latency by Communication Pattern — Baseline vs Full Zero Trust')
+    ax.set_title('P99 S1 Latency by Transport — Baseline vs Full Gateway ZT (30 RPS)')
     ax.legend()
     plt.tight_layout()
     fig.savefig(out_path, dpi=150)
