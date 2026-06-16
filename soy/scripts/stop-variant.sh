@@ -13,7 +13,9 @@ COMPOSE_FILE="$SOY_DIR/docker-compose.yml"
 
 $QUIET || echo "▶  Stopping all SoY containers..."
 
-# Stop with every known profile so docker compose can remove all containers
+# Stop with every known profile so docker compose can remove all containers.
+# --volumes removes prometheus_data and grafana_data named volumes so they
+# don't accumulate across the 42-run sweep and exhaust RAM.
 docker compose \
   -f "$COMPOSE_FILE" \
   --profile sr \
@@ -22,6 +24,6 @@ docker compose \
   --profile queue \
   --profile topic \
   --profile monitoring \
-  down --remove-orphans --timeout 30 2>/dev/null || true
+  down --remove-orphans --volumes --timeout 30 2>/dev/null || true
 
 $QUIET || echo "✓  Stopped."

@@ -1,9 +1,15 @@
-\begin{tabular}{lr}
+\begin{tabular}{lrr}
 \toprule
-Variant & \multicolumn{1}{c}{HTTP} \\
-\cmidrule(lr){2-2}
- & 30~RPS \\
+Variant & \multicolumn{1}{c}{HTTP} & \multicolumn{1}{c}{QUEUE} \\
+\cmidrule(lr){2-2}\cmidrule(lr){3-3}
+ & 30~RPS & 30~RPS \\
 \midrule
-v4-mtls & 0.3 \\
+v1-baseline & 0.0 & 0.0 \\
+v2-ac4a & 0.0 & 0.0 \\
+v3-sr & 0.0 & 0.0 \\
+v4-mtls & 0.0 & 0.0 \\
+v5-ra & 0.0 & 0.0 \\
+v6-all & 1.2 & 2.2 \\
+v7-ra-ms & 50.0 & 50.0 \\
 \bottomrule
 \end{tabular}

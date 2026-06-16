@@ -41,12 +41,10 @@ services:
   # FRONTEND
   # ─────────────────────────────────────────────────────────
   front:
-    build:
-      context: ./FrontReact
+    image: icws24submission/front_v5:latest
     container_name: soy_front
     profiles: [front]
-    security_opt:
-      - no-new-privileges:true
+
     restart: on-failure
     ports:
       - "${FRONT_PORT:-3001}:8000"
@@ -58,8 +56,7 @@ services:
   # DATABASE
   # ─────────────────────────────────────────────────────────
   postgres:
-    build:
-      context: ./soy-db
+    image: icws24submission/postgres_icws24:latest
     container_name: soy_postgres
     user: "0"
     shm_size: 1g
@@ -76,11 +73,10 @@ services:
   # ─────────────────────────────────────────────────────────
   gateway:
     build:
-      context: ./gateway-http
+      context: ./gateway
     container_name: soy_gateway
-    security_opt:
-      - no-new-privileges:true
     restart: on-failure
+    mem_limit: 512m
     depends_on:
       - ms-exercise
       - ms-other
@@ -104,11 +100,10 @@ services:
   # ─────────────────────────────────────────────────────────
   ms-exercise:
     build:
-      context: ./exercise-http
+      context: ./ms-exercise
     container_name: soy_ms_exercise
-    security_opt:
-      - no-new-privileges:true
     restart: on-failure
+    mem_limit: 768m
     networks:
       - appnet
     env_file:
@@ -118,18 +113,17 @@ services:
       - SERVICE_NAME=ms-exercise
       - OTEL_SERVICE_NAME=soy-ms-exercise
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
-      - OTEL_ENABLED=true
+      - OTEL_ENABLED
     volumes:
       - ./certs:/app/certs:ro
       - ./proto:/app/proto:ro
 
   ms-other:
     build:
-      context: ./other-http
+      context: ./ms-other
     container_name: soy_ms_other
-    security_opt:
-      - no-new-privileges:true
     restart: on-failure
+    mem_limit: 768m
     networks:
       - appnet
     env_file:
@@ -139,10 +133,32 @@ services:
       - SERVICE_NAME=ms-other
       - OTEL_SERVICE_NAME=soy-ms-other
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
-      - OTEL_ENABLED=true
+      - OTEL_ENABLED
     volumes:
       - ./certs:/app/certs:ro
       - ./proto:/app/proto:ro
+
+  # ─────────────────────────────────────────────────────────
+  # QUEUE pattern – AMQP→HTTP relay  (profile: queue)
+  # ─────────────────────────────────────────────────────────
+  queue-adapter:
+    build:
+      context: ./queue-adapter
+    container_name: soy_queue_adapter
+    profiles: [queue]
+    restart: on-failure
+    networks:
+      - appnet
+    env_file:
+      - variables.env
+      - ${ZT_VARIANT_ENV:-variants/v1-baseline.env}
+    environment:
+      - PREFETCH=8
+    volumes:
+      - ./certs:/app/certs:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   # ─────────────────────────────────────────────────────────
   # SR PRIMITIVE – HashiCorp Vault  (profile: sr)
@@ -193,10 +209,9 @@ services:
     build:
       context: ./risk-analysis
     container_name: soy_risk_analysis
-    security_opt:
-      - no-new-privileges:true
     profiles: [ra]
     restart: on-failure
+    mem_limit: 512m
     networks:
       - appnet
     environment:
@@ -353,6 +368,7 @@ services:
     container_name: soy_prometheus
     profiles: [monitoring]
     restart: on-failure
+    mem_limit: 512m
     networks:
       - appnet
     ports:
@@ -364,12 +380,14 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=2h'
 
   grafana:
     image: grafana/grafana:10.2.0
     container_name: soy_grafana
     profiles: [monitoring]
     restart: on-failure
+    mem_limit: 256m
     networks:
       - appnet
     ports:
@@ -389,6 +407,7 @@ services:
     container_name: soy_cadvisor
     profiles: [monitoring]
     restart: on-failure
+    mem_limit: 512m
     privileged: true
     networks:
       - appnet
@@ -397,19 +416,19 @@ services:
     volumes:
       - /:/rootfs:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /run/containerd/containerd.sock:/run/containerd/containerd.sock:ro
       - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     command:
       - '--store_container_labels=false'
-      - '--housekeeping_interval=5s'
+      - '--housekeeping_interval=30s'
+      - '--disable_metrics=advtcp,cpuLoad,disk,diskIO,hugetlb,memory_numa,network,oom_event,percpu,perf_event,process,referenced_memory,resctrl,sched,tcp,udp'
 
   node-exporter:
     image: prom/node-exporter:v1.6.1
     container_name: soy_node_exporter
     profiles: [monitoring]
     restart: on-failure
+    mem_limit: 128m
     networks:
       - appnet
     ports:
@@ -429,6 +448,7 @@ services:
     container_name: soy_jaeger
     profiles: [monitoring]
     restart: on-failure
+    mem_limit: 512m
     networks:
       - appnet
     ports:
