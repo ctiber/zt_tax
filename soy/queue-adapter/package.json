@@ -1,0 +1,16 @@
+{
+  "name": "soy-queue-adapter",
+  "version": "1.0.0",
+  "description": "AMQP→HTTP relay for SoY queue communication pattern",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
