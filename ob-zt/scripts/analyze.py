@@ -12,6 +12,7 @@ import sys
 import csv
 import json
 import re
+from collections import defaultdict
 from pathlib import Path
 from statistics import median, quantiles, stdev
 
@@ -27,7 +28,7 @@ VARIANT_NAMES = {
 
 
 def parse_gatling_log(log_path: Path) -> dict:
-    """Parses a Gatling simulation.log and returns P50/P99/mean latency and error rate."""
+    """Parses a Gatling simulation.log and returns P50/P99/mean latency, error rate, and raw durations."""
     latencies = []
     total = ok = 0
     with open(log_path) as f:
@@ -59,6 +60,7 @@ def parse_gatling_log(log_path: Path) -> dict:
         "mean_ms":    round(sum(latencies) / len(latencies), 1),
         "requests":   total,
         "error_pct":  round((total - ok) / max(total, 1) * 100, 2),
+        "durations":  latencies,
     }
 
 
@@ -142,6 +144,76 @@ def main():
         w.writeheader()
         w.writerows(sorted(rows, key=lambda x: (x["pattern"], x["variant"])))
     print(f"\nSummary written to {csv_path}")
+
+    # ── Boxplot ────────────────────────────────────────────────────────────────
+    fig_dir = results_dir.parent / "analysis" / "figures"
+    fig_dir.mkdir(parents=True, exist_ok=True)
+
+    # Collect raw durations per variant (pool both patterns and all runs)
+    raw_by_variant: dict[str, list] = defaultdict(list)
+    for run_dir in sorted(results_dir.iterdir()):
+        if not run_dir.is_dir() or run_dir.is_symlink():
+            continue
+        variant, pattern = extract_variant_pattern(run_dir.name)
+        if variant is None:
+            continue
+        sim_log = find_simulation_log(run_dir)
+        if not sim_log:
+            continue
+        metrics = parse_gatling_log(sim_log)
+        if not metrics or metrics.get("error_pct", 0) > 10.0:
+            continue
+        label = f"v{variant}-{VARIANT_NAMES.get(variant, str(variant))}"
+        raw_by_variant[label].extend(metrics.get("durations", []))
+
+    if raw_by_variant:
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
+            ZT_COLORS = {
+                "v1-baseline":  "#74c476",
+                "v2-AC4A":      "#fd8d3c",
+                "v3-SR":        "#6baed6",
+                "v4-mTLS":      "#9e9ac8",
+                "v5-RA":        "#f768a1",
+                "v6-All-GW":    "#d62728",
+                "v7-All+RA-MS": "#8c564b",
+            }
+
+            labels = sorted(raw_by_variant.keys(),
+                            key=lambda x: int(x.split("-")[0][1:]))
+            data = [raw_by_variant[l] for l in labels]
+
+            fig, ax = plt.subplots(figsize=(max(10, len(labels) * 1.8), 6))
+            bp_kwargs = dict(patch_artist=True, notch=False, showfliers=False,
+                             medianprops=dict(color='black', linewidth=2))
+            ver = tuple(int(x) for x in matplotlib.__version__.split('.')[:2])
+            if ver >= (3, 9):
+                bp_kwargs['tick_labels'] = labels
+            else:
+                bp_kwargs['labels'] = labels
+            bp = ax.boxplot(data, **bp_kwargs)
+            for patch, lbl in zip(bp['boxes'], labels):
+                patch.set_facecolor(ZT_COLORS.get(lbl, '#aaaaaa'))
+                patch.set_alpha(0.7)
+            for i, (lbl, d) in enumerate(zip(labels, data)):
+                ax.text(i + 1, ax.get_ylim()[0], f'n={len(d)}',
+                        ha='center', va='bottom', fontsize=8, color='#555555')
+
+            ax.set_xlabel('ZT Variant', fontsize=11)
+            ax.set_ylabel('Request Duration (ms)', fontsize=11)
+            ax.set_title('OB Latency Distribution by ZT Variant (HTTP + Queue pooled)',
+                         fontsize=12)
+            ax.tick_params(axis='x', rotation=45, labelsize=10)
+            plt.tight_layout()
+            out_fig = fig_dir / "ob_latency_boxplot.pdf"
+            fig.savefig(out_fig, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+            print(f"  ✓ {out_fig.name}")
+        except ImportError:
+            print("  ⚠  matplotlib not available — skipping boxplot")
 
 
 if __name__ == "__main__":

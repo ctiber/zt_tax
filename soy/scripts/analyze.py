@@ -843,31 +843,10 @@ def variant_label(r: dict) -> str:
     return '+'.join(flags) if flags else 'baseline'
 
 
-def fig_latency_boxplot(runs: list, out_path: 'Path'):
-    """
-    Box plot of S1 request durations grouped by ZT combination.
-    Each group pools the raw request duration samples across ALL comm patterns,
-    giving a proper distribution (thousands of data points per box) rather than
-    a single-point summary.
-    """
-    from collections import defaultdict
-
-    groups = defaultdict(list)
-    for r in runs:
-        lbl = variant_label(r)
-        # s1['durations'] is the list of individual request durations from simulation.log
-        groups[lbl].extend(r['s1'].get('durations', []))
-
-    if not groups:
-        print(f"  ⚠  No duration data for box plot — skipping {out_path.name}")
-        return
-
-    labels = sorted(groups.keys(), key=lambda x: (len(x), x))
-    data   = [groups[l] for l in labels]
-
-    fig, ax = plt.subplots(figsize=(max(8, len(labels) * 1.3), 5))
-    # 'tick_labels' replaces 'labels' in Matplotlib >= 3.9
+def _draw_boxplot(ax, groups: dict, labels: list, title: str, ylabel: str):
+    """Helper: draw a single boxplot panel onto ax."""
     import matplotlib
+    data = [groups[l] for l in labels]
     bp_kwargs = dict(patch_artist=True, notch=False, showfliers=False,
                      medianprops=dict(color='black', linewidth=2))
     if tuple(int(x) for x in matplotlib.__version__.split('.')[:2]) >= (3, 9):
@@ -875,21 +854,50 @@ def fig_latency_boxplot(runs: list, out_path: 'Path'):
     else:
         bp_kwargs['labels'] = labels
     bp = ax.boxplot(data, **bp_kwargs)
-    for patch, label in zip(bp['boxes'], labels):
-        patch.set_facecolor(ZT_COLORS.get(label, '#aaaaaa'))
+    for patch, lbl in zip(bp['boxes'], labels):
+        patch.set_facecolor(ZT_COLORS.get(lbl, '#aaaaaa'))
         patch.set_alpha(0.7)
-
-    # Annotate each box with its sample count
-    for i, (label, d) in enumerate(zip(labels, data)):
+    for i, (lbl, d) in enumerate(zip(labels, data)):
         ax.text(i + 1, ax.get_ylim()[0], f'n={len(d)}',
-                ha='center', va='bottom', fontsize=7, color='#555555')
+                ha='center', va='bottom', fontsize=8, color='#555555')
+    ax.set_ylabel(ylabel, fontsize=11)
+    ax.set_title(title, fontsize=11)
+    ax.tick_params(axis='x', rotation=45, labelsize=10)
 
-    ax.set_xlabel('ZT Primitive Combination')
-    ax.set_ylabel('Request Duration S1 – Classroom Begin (ms)')
-    ax.set_title('Latency Distribution by Zero-Trust Combination (all patterns pooled)')
-    ax.tick_params(axis='x', rotation=30)
+
+def fig_latency_boxplot(runs: list, out_path: 'Path'):
+    """
+    Two-panel box plot: S1 (Classroom Begin) on top, S2 (Exercise Submit) below.
+    Each panel pools raw request duration samples across ALL comm patterns.
+    """
+    from collections import defaultdict
+
+    g_s1, g_s2 = defaultdict(list), defaultdict(list)
+    for r in runs:
+        lbl = variant_label(r)
+        g_s1[lbl].extend(r['s1'].get('durations', []))
+        g_s2[lbl].extend(r['s2'].get('durations', []))
+
+    if not g_s1:
+        print(f"  ⚠  No duration data for box plot — skipping {out_path.name}")
+        return
+
+    labels = sorted(g_s1.keys(), key=lambda x: (len(x), x))
+    w = max(11, len(labels) * 1.8)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(w, 10), sharex=True)
+
+    _draw_boxplot(ax1, g_s1, labels,
+                  'S1 – Classroom Begin (read)',
+                  'Request Duration (ms)')
+    _draw_boxplot(ax2, g_s2, labels,
+                  'S2 – Exercise Submit (write)',
+                  'Request Duration (ms)')
+
+    ax2.set_xlabel('ZT Primitive Combination', fontsize=11)
+    fig.suptitle('SoY Latency Distribution by ZT Combination (all patterns pooled)',
+                 fontsize=12, y=1.01)
     plt.tight_layout()
-    fig.savefig(out_path, dpi=150)
+    fig.savefig(out_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
     print(f"  ✓ {out_path.name}")
 
