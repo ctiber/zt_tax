@@ -844,7 +844,7 @@ def variant_label(r: dict) -> str:
 
 
 def _draw_boxplot(ax, groups: dict, labels: list, title: str, ylabel: str):
-    """Helper: draw a single boxplot panel onto ax."""
+    """Helper: draw a single boxplot panel onto ax (log y-scale)."""
     import matplotlib
     data = [groups[l] for l in labels]
     bp_kwargs = dict(patch_artist=True, notch=False, showfliers=False,
@@ -857,12 +857,18 @@ def _draw_boxplot(ax, groups: dict, labels: list, title: str, ylabel: str):
     for patch, lbl in zip(bp['boxes'], labels):
         patch.set_facecolor(ZT_COLORS.get(lbl, '#aaaaaa'))
         patch.set_alpha(0.7)
+    ax.set_yscale('log')
+    ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(
+        lambda v, _: f'{int(v):,}' if v >= 1 else f'{v:.1f}'))
     for i, (lbl, d) in enumerate(zip(labels, data)):
-        ax.text(i + 1, ax.get_ylim()[0], f'n={len(d)}',
+        ymin = ax.get_ylim()[0]
+        ax.text(i + 1, ymin * 1.05, f'n={len(d)}',
                 ha='center', va='bottom', fontsize=8, color='#555555')
     ax.set_ylabel(ylabel, fontsize=11)
     ax.set_title(title, fontsize=11)
     ax.tick_params(axis='x', rotation=45, labelsize=10)
+    ax.tick_params(axis='y', labelsize=9)
+    ax.grid(axis='y', which='both', linestyle=':', linewidth=0.5, alpha=0.7)
 
 
 def fig_latency_boxplot(runs: list, out_path: 'Path'):
