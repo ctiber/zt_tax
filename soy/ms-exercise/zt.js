@@ -90,11 +90,12 @@ async function callRA(req, res, next) {
   } catch {}
 
   try {
+    // Do NOT send ip: the microservice sees the proxy/sidecar IP, not the real
+    // client IP. IP-change detection is handled at the gateway level only.
     const resp = await axios.post(`${RA_SERVICE_URL}/analyze`, {
       userId, userRole,
       method: req.method,
       path:   normalizePath(req.path),
-      ip:     req.ip,
     }, { timeout: 5000 });
     if (resp.data?.block === true) {
       return res.status(403).json({ error: 'blocked by risk analysis' });
